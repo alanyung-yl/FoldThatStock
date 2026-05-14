@@ -1,0 +1,84 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>FoldThatStock</AssemblyName>
+    <RootNamespace>FoldThatStock</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
+    <SPTRoot Condition="'$(SPTRoot)' == ''">C:\SPT</SPTRoot>
+    <BepInExCorePath>$(SPTRoot)\BepInEx\core</BepInExCorePath>
+    <ManagedPath>$(SPTRoot)\EscapeFromTarkov_Data\Managed</ManagedPath>
+    <LocalPluginOutputDir>plugin\FoldThatStock\</LocalPluginOutputDir>
+    <SPTPluginOutputDir>$(SPTRoot)\BepInEx\plugins\FoldThatStock</SPTPluginOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ManagedPath)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ItemComponent.Types">
+      <HintPath>$(ManagedPath)\ItemComponent.Types.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCorePath)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCorePath)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedPath)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedPath)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(ManagedPath)\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="FoldThatStockPlugin.cs" />
+    <StockBundles Include="bundle\*.bundle" />
+  </ItemGroup>
+
+  <Target Name="ValidateSPTRoot" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(ManagedPath)\Assembly-CSharp.dll')" Text="Assembly-CSharp.dll not found under $(ManagedPath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(ManagedPath)\ItemComponent.Types.dll')" Text="ItemComponent.Types.dll not found under $(ManagedPath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(BepInExCorePath)\BepInEx.dll')" Text="BepInEx.dll not found. Build with -p:SPTRoot=&quot;C:\SPT&quot; or point SPTRoot at your SPT install." />
+    <Error Condition="!Exists('$(BepInExCorePath)\0Harmony.dll')" Text="0Harmony.dll not found under $(BepInExCorePath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(ManagedPath)\UnityEngine.dll')" Text="UnityEngine.dll not found under $(ManagedPath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(ManagedPath)\UnityEngine.CoreModule.dll')" Text="UnityEngine.CoreModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(ManagedPath)\UnityEngine.AssetBundleModule.dll')" Text="UnityEngine.AssetBundleModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
+  </Target>
+
+  <Target Name="CopyToLocalPluginFolder" AfterTargets="Build">
+    <MakeDir Directories="$(LocalPluginOutputDir)" />
+
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll" DestinationFiles="$(LocalPluginOutputDir)$(AssemblyName).dll" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFiles="$(LocalPluginOutputDir)$(AssemblyName).pdb" Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).deps.json" DestinationFiles="$(LocalPluginOutputDir)$(AssemblyName).deps.json" Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
+    <Copy SourceFiles="@(StockBundles)" DestinationFolder="$(LocalPluginOutputDir)" Condition="'@(StockBundles)' != ''" />
+  </Target>
+
+  <Target Name="CopyToSPTPlugins" AfterTargets="Build" Condition="'$(DeployToSPT)' != 'false' And Exists('$(BepInExCorePath)\BepInEx.dll')">
+    <MakeDir Directories="$(SPTPluginOutputDir)" />
+
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).dll" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).pdb" Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).deps.json" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).deps.json" Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
+    <Copy SourceFiles="@(StockBundles)" DestinationFolder="$(SPTPluginOutputDir)" Condition="'@(StockBundles)' != ''" />
+  </Target>
+</Project>

@@ -1,0 +1,28 @@
+﻿# Build outputs
+bin/
+obj/
+
+# IDE/editor files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# NuGet / package artifacts
+packages/
+*.nupkg
+*.snupkg
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docs
+docs/

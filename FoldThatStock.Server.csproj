@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>FoldThatStock.Server</RootNamespace>
+    <AssemblyName>FoldThatStockServer</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <Version>0.3.0</Version>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\SPT\user\mods\FoldThatStock\</OutputPath>
+    <SPTRoot Condition="'$(SPTRoot)' == ''">C:\SPT\SPT</SPTRoot>
+    <SPTServerModOutputDir>$(SPTRoot)\user\mods\FoldThatStock</SPTServerModOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SPTarkov.Common" Version="4.0.13" />
+    <PackageReference Include="SPTarkov.DI" Version="4.0.13" />
+    <PackageReference Include="SPTarkov.Server.Core" Version="4.0.13" />
+    <Compile Include="FoldThatStockServerPatch.cs" />
+  </ItemGroup>
+
+  <Target Name="CopyServerModToSPT" AfterTargets="Build" Condition="'$(DeployToSPT)' != 'false' And Exists('$(SPTRoot)\SPT.Server.exe')">
+    <MakeDir Directories="$(SPTServerModOutputDir)" />
+
+    <ItemGroup>
+      <ServerModOutputFiles Include="$(TargetDir)$(AssemblyName).*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(ServerModOutputFiles)" DestinationFolder="$(SPTServerModOutputDir)" />
+  </Target>
+</Project>
