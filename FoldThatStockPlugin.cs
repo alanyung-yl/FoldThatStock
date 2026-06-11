@@ -17,11 +17,14 @@ namespace FoldThatStock
     {
         public const string PluginGuid = "com.foldthatstock";
         public const string PluginName = "FoldThatStock";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "1.0.0";
+
+        private static readonly Vector3 SigMpxMcxRetractedPosition = new Vector3(0f, 0.0102f, 0.092f);
 
         internal static FoldThatStockPlugin Instance { get; private set; }
 
         internal static readonly Quaternion DefaultFoldedRotation = new Quaternion(0f, 0.7071068f, 0.7071068f, 0f);
+        internal static readonly Quaternion DefaultRightFoldedRotation = new Quaternion(0f, -0.7071068f, -0.7071068f, 0f);
 
         internal sealed class VisualStockDefinition
         {
@@ -31,8 +34,11 @@ namespace FoldThatStock
             public string ContainerPathContains = string.Empty;
             public string StockPathContains;
             public string[] TargetBoneNamePatterns;
+            public bool KeepUnfoldedRotation;
             public bool HasFoldedRotation;
             public Quaternion FoldedRotation;
+            public bool HasRetractedPosition;
+            public Vector3 RetractedPosition;
             public string BundleFileName;
             public string BundleSourcePathContains;
             public string BundleOverridePath;
@@ -46,8 +52,6 @@ namespace FoldThatStock
                 DisplayName = "SIG thin folding stock",
                 StockPathContains = "stock_all_sig_thin_folding_stock",
                 TargetBoneNamePatterns = new[] { "mod_stock_folding" },
-                HasFoldedRotation = true,
-                FoldedRotation = new Quaternion(0f, 0.7071068f, 0.7071068f, 0f),
                 BundleFileName = "stock_all_sig_thin_folding_stock.bundle",
                 BundleSourcePathContains = "assets/content/items/mods/stocks/stock_all_sig_thin_folding_stock.bundle",
                 BundleOverridePath = Path.Combine("FoldThatStock", "stock_all_sig_thin_folding_stock.bundle")
@@ -84,6 +88,26 @@ namespace FoldThatStock
             },
             new VisualStockDefinition
             {
+                Id = "sig_mpx_mcx_early_type_stock",
+                DisplayName = "SIG MPX/MCX early type stock",
+                StockPathContains = "stock_all_sig_mpx_mcx_early_type",
+                TargetBoneNamePatterns = new[] { "mod_stock_000" },
+                KeepUnfoldedRotation = true,
+                HasRetractedPosition = true,
+                RetractedPosition = SigMpxMcxRetractedPosition
+            },
+            new VisualStockDefinition
+            {
+                Id = "sig_mpx_brace",
+                DisplayName = "SIG MPX brace",
+                StockPathContains = "stock_all_sig_mpx_brace",
+                TargetBoneNamePatterns = new[] { "mod_stock_001" },
+                KeepUnfoldedRotation = true,
+                HasRetractedPosition = true,
+                RetractedPosition = SigMpxMcxRetractedPosition
+            },
+            new VisualStockDefinition
+            {
                 Id = "sig_stock_locking_hinge_assembly",
                 DisplayName = "SIG stock locking hinge assembly",
                 StockPathContains = "stock_all_sig_stock_locking_hinge_assembly",
@@ -98,9 +122,23 @@ namespace FoldThatStock
                 DisplayName = "UTG SFS AK adapter",
                 StockPathContains = "stock_ak_utg_sfs_adapter",
                 TargetBoneNamePatterns = new[] { "mod_stock_001" },
+                HasFoldedRotation = true,
+                FoldedRotation = DefaultRightFoldedRotation,
                 BundleFileName = "stock_ak_utg_sfs_adapter.bundle",
                 BundleSourcePathContains = "assets/content/items/mods/stocks/stock_ak_utg_sfs_adapter.bundle",
                 BundleOverridePath = Path.Combine("FoldThatStock", "stock_ak_utg_sfs_adapter.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "ak_magpul_zhukov_s",
+                DisplayName = "Magpul Zhukov-S AK stock",
+                StockPathContains = "stock_ak_magpul_zhukov_s",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding" },
+                HasFoldedRotation = true,
+                FoldedRotation = DefaultRightFoldedRotation,
+                BundleFileName = "stock_ak_magpul_zhukov_s.bundle",
+                BundleSourcePathContains = "assets/content/items/mods/stocks/stock_ak_magpul_zhukov_s.bundle",
+                BundleOverridePath = Path.Combine("FoldThatStock", "stock_ak_magpul_zhukov_s.bundle")
             }
         };
 
@@ -747,11 +785,16 @@ namespace FoldThatStock
         private sealed class TargetState
         {
             public Transform Transform;
+            public FoldThatStockPlugin.VisualStockDefinition Definition;
+            public bool HasPositionState;
+            public Vector3 UnfoldedPosition;
             public Quaternion UnfoldedRotation;
             public Quaternion FoldedRotation;
             public bool HasVisualFolded;
             public bool VisualFolded;
             public bool TweenActive;
+            public Vector3 TweenPositionFrom;
+            public Vector3 TweenPositionTo;
             public Quaternion TweenFrom;
             public Quaternion TweenTo;
             public float TweenStartedAt;
@@ -779,6 +822,11 @@ namespace FoldThatStock
                 TargetState target = _targets[i];
                 if (target != null && target.Transform != null)
                 {
+                    if (target.HasPositionState)
+                    {
+                        target.Transform.localPosition = target.UnfoldedPosition;
+                    }
+
                     target.Transform.localRotation = target.UnfoldedRotation;
                 }
             }
@@ -845,14 +893,20 @@ namespace FoldThatStock
                     continue;
                 }
 
-                Quaternion foldedRotation = definition.HasFoldedRotation
+                Quaternion unfoldedRotation = transforms[i].localRotation;
+                Quaternion foldedRotation = definition.KeepUnfoldedRotation
+                    ? unfoldedRotation
+                    : definition.HasFoldedRotation
                     ? definition.FoldedRotation
                     : FoldThatStockPlugin.DefaultFoldedRotation;
 
                 _targets.Add(new TargetState
                 {
                     Transform = transforms[i],
-                    UnfoldedRotation = transforms[i].localRotation,
+                    Definition = definition,
+                    HasPositionState = definition.HasRetractedPosition,
+                    UnfoldedPosition = transforms[i].localPosition,
+                    UnfoldedRotation = unfoldedRotation,
                     FoldedRotation = foldedRotation
                 });
             }
@@ -872,6 +926,7 @@ namespace FoldThatStock
                 }
 
                 Quaternion targetRotation = folded ? target.FoldedRotation : target.UnfoldedRotation;
+                Vector3 targetPosition = GetTargetPosition(target, folded);
                 if (!target.HasVisualFolded || target.VisualFolded != folded)
                 {
                     target.HasVisualFolded = true;
@@ -880,6 +935,8 @@ namespace FoldThatStock
                     if (animateChangedState)
                     {
                         target.TweenActive = true;
+                        target.TweenPositionFrom = target.Transform.localPosition;
+                        target.TweenPositionTo = targetPosition;
                         target.TweenFrom = target.Transform.localRotation;
                         target.TweenTo = targetRotation;
                         target.TweenStartedAt = now;
@@ -893,18 +950,45 @@ namespace FoldThatStock
                 if (target.TweenActive)
                 {
                     float t = Mathf.Clamp01((now - target.TweenStartedAt) / TransitionSeconds);
+                    if (target.HasPositionState)
+                    {
+                        target.Transform.localPosition = Vector3.Lerp(target.TweenPositionFrom, target.TweenPositionTo, t);
+                    }
+
                     target.Transform.localRotation = Quaternion.Slerp(target.TweenFrom, target.TweenTo, t);
                     if (t >= 1f)
                     {
                         target.TweenActive = false;
+                        if (target.HasPositionState)
+                        {
+                            target.Transform.localPosition = targetPosition;
+                        }
+
                         target.Transform.localRotation = targetRotation;
                     }
                 }
                 else
                 {
+                    if (target.HasPositionState)
+                    {
+                        target.Transform.localPosition = targetPosition;
+                    }
+
                     target.Transform.localRotation = targetRotation;
                 }
             }
+        }
+
+        private static Vector3 GetTargetPosition(TargetState target, bool folded)
+        {
+            if (target == null || !target.HasPositionState || !folded)
+            {
+                return target != null ? target.UnfoldedPosition : Vector3.zero;
+            }
+
+            return target.Definition != null
+                ? target.Definition.RetractedPosition
+                : target.UnfoldedPosition;
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
@@ -17,7 +18,7 @@ public record ModMetadata : AbstractModMetadata
     public override string Name { get; init; } = "FoldThatStock";
     public override string Author { get; init; } = "alanyung-yl";
     public override List<string>? Contributors { get; init; }
-    public override SemanticVersioning.Version Version { get; init; } = new("0.3.0");
+    public override SemanticVersioning.Version Version { get; init; } = new("1.0.0");
     public override SemanticVersioning.Range SptVersion { get; init; } = new("~4.0.0");
     public override List<string>? Incompatibilities { get; init; }
     public override Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
@@ -58,6 +59,20 @@ public class FoldThatStockServerPatch(
 ) : IOnLoad
 {
     private const string LogPrefix = "FoldThatStock:";
+    private const string DefaultFoldedSlot = "mod_stock";
+
+    private static readonly string[] BuiltInSupportedStockTemplateIds =
+    {
+        "5fbcc437d724d907e2077d5c",
+        "58ac1bf086f77420ed183f9f",
+        "5c5db6f82e2216003a0fe914",
+        "5fbcc429900b1d5091531dd7",
+        "5894a13e86f7742405482982",
+        "6761496fe2cf1419500357e9",
+        "6529348224cbe3c74a05e5c4",
+        "5649b2314bdc2d79388b4576",
+        "5b0e794b5acfc47a877359b2",
+    };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -77,6 +92,7 @@ public class FoldThatStockServerPatch(
         var items = databaseService.GetItems();
         var patchedWeapons = 0;
         var patchedStocks = 0;
+        var patchedFoldBlocks = 0;
 
         foreach (var weaponPatch in config.WeaponPatches.Where(patch => patch != null && patch.Enabled))
         {
@@ -94,7 +110,12 @@ public class FoldThatStockServerPatch(
             }
         }
 
-        logger.Success($"{LogPrefix} Applied {patchedWeapons} weapon patch(es) and {patchedStocks} stock patch(es).");
+        patchedFoldBlocks = ApplyFoldCompatibilityPatches(items, config);
+
+        logger.Success(
+            $"{LogPrefix} Applied {patchedWeapons} weapon patch(es), {patchedStocks} stock patch(es), " +
+            $"and {patchedFoldBlocks} fold compatibility patch(es)."
+        );
         return Task.CompletedTask;
     }
 
@@ -122,14 +143,6 @@ public class FoldThatStockServerPatch(
             changed |= TrySetTemplateProperty(template.Properties, "FoldedSlot", patch.FoldedSlot, patch.Name, patch.WeaponTemplateId);
         }
 
-        if (changed)
-        {
-            logger.Info(
-                $"{LogPrefix} Patched weapon `{GetPatchLabel(patch.Name, patch.WeaponTemplateId)}` " +
-                $"Foldable={patch.Foldable?.ToString() ?? "<unchanged>"} FoldedSlot={patch.FoldedSlot ?? "<unchanged>"}."
-            );
-        }
-
         return changed;
     }
 
@@ -152,15 +165,119 @@ public class FoldThatStockServerPatch(
             changed |= TrySetTemplateProperty(template.Properties, "SizeReduceRight", patch.SizeReduceRight.Value, patch.Name, patch.StockTemplateId);
         }
 
-        if (changed)
+        return changed;
+    }
+
+    private int ApplyFoldCompatibilityPatches(Dictionary<MongoId, TemplateItem> items, FoldThatStockServerConfig config)
+    {
+        var supportedStockTemplateIds = GetSupportedStockTemplateIds(config);
+        var processedStockTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var patchedFoldBlocks = 0;
+
+        foreach (var weaponPatch in config.WeaponPatches.Where(patch => patch != null && patch.Enabled))
         {
-            logger.Info(
-                $"{LogPrefix} Patched stock `{GetPatchLabel(patch.Name, patch.StockTemplateId)}` " +
-                $"SizeReduceRight={patch.SizeReduceRight?.ToString(CultureInfo.InvariantCulture) ?? "<unchanged>"}."
-            );
+            if (!TryGetTemplate(items, weaponPatch.WeaponTemplateId, weaponPatch.Name, out var weaponTemplate))
+            {
+                continue;
+            }
+
+            if (weaponTemplate.Properties == null)
+            {
+                continue;
+            }
+
+            var foldedSlot = GetConfiguredFoldedSlot(weaponTemplate, weaponPatch);
+            var acceptedStockTemplateIds = GetFoldedSlotFilterIds(weaponTemplate, foldedSlot)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var stockTemplateId in acceptedStockTemplateIds)
+            {
+                if (!processedStockTemplateIds.Add(stockTemplateId))
+                {
+                    continue;
+                }
+
+                if (!TryGetTemplateQuiet(items, stockTemplateId, out var stockTemplate) || stockTemplate.Properties == null)
+                {
+                    continue;
+                }
+
+                var shouldBlockFolding = !supportedStockTemplateIds.Contains(stockTemplateId);
+                if (TrySetTemplateProperty(stockTemplate.Properties, "BlocksFolding", shouldBlockFolding, string.Empty, stockTemplateId))
+                {
+                    patchedFoldBlocks++;
+                }
+            }
         }
 
-        return changed;
+        return patchedFoldBlocks;
+    }
+
+    private static HashSet<string> GetSupportedStockTemplateIds(FoldThatStockServerConfig config)
+    {
+        var supportedStockTemplateIds = new HashSet<string>(BuiltInSupportedStockTemplateIds, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var stockPatch in GetEnabledStockPatches(config))
+        {
+            if (!string.IsNullOrWhiteSpace(stockPatch.StockTemplateId))
+            {
+                supportedStockTemplateIds.Add(stockPatch.StockTemplateId.Trim());
+            }
+        }
+
+        return supportedStockTemplateIds;
+    }
+
+    private static string GetConfiguredFoldedSlot(TemplateItem weaponTemplate, WeaponFoldPatch patch)
+    {
+        if (!string.IsNullOrWhiteSpace(patch.FoldedSlot))
+        {
+            return patch.FoldedSlot.Trim();
+        }
+
+        if (weaponTemplate.Properties != null)
+        {
+            var foldedSlot = GetStringMemberValue(weaponTemplate.Properties, "FoldedSlot");
+            if (!string.IsNullOrWhiteSpace(foldedSlot))
+            {
+                return foldedSlot.Trim();
+            }
+        }
+
+        return DefaultFoldedSlot;
+    }
+
+    private static IEnumerable<string> GetFoldedSlotFilterIds(TemplateItem weaponTemplate, string foldedSlot)
+    {
+        if (weaponTemplate.Properties == null)
+        {
+            yield break;
+        }
+
+        var slots = GetMemberValue(weaponTemplate.Properties, "Slots");
+        foreach (var slot in EnumerateItems(slots))
+        {
+            var slotName = GetStringMemberValue(slot, "_name", "Name");
+            if (!string.Equals(slotName, foldedSlot, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var slotProperties = GetMemberValue(slot, "_props", "Props", "Properties") ?? slot;
+            var filters = GetMemberValue(slotProperties, "filters", "Filters");
+            foreach (var filter in EnumerateItems(filters))
+            {
+                var filterIds = GetMemberValue(filter, "Filter");
+                foreach (var filterId in EnumerateItems(filterIds))
+                {
+                    var stockTemplateId = filterId?.ToString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(stockTemplateId))
+                    {
+                        yield return stockTemplateId;
+                    }
+                }
+            }
+        }
     }
 
     private bool TryGetTemplate(Dictionary<MongoId, TemplateItem> items, string templateId, string label, out TemplateItem template)
@@ -185,6 +302,14 @@ public class FoldThatStockServerPatch(
         }
 
         return true;
+    }
+
+    private static bool TryGetTemplateQuiet(Dictionary<MongoId, TemplateItem> items, string templateId, out TemplateItem template)
+    {
+        template = null!;
+        return !string.IsNullOrWhiteSpace(templateId)
+            && TryParseMongoId(templateId.Trim(), out var parsedId)
+            && items.TryGetValue(parsedId, out template!);
     }
 
     private bool TrySetTemplateProperty(object properties, string propertyName, object value, string label, string templateId)
@@ -272,6 +397,18 @@ public class FoldThatStockServerPatch(
                 },
                 new()
                 {
+                    Name = "SIG MPX/MCX early type stock",
+                    StockTemplateId = "5894a13e86f7742405482982",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
+                    Name = "SIG MPX brace",
+                    StockTemplateId = "6761496fe2cf1419500357e9",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
                     Name = "SIG stock locking hinge assembly",
                     StockTemplateId = "6529348224cbe3c74a05e5c4",
                     SizeReduceRight = 1,
@@ -280,6 +417,12 @@ public class FoldThatStockServerPatch(
                 {
                     Name = "UTG SFS AK adapter",
                     StockTemplateId = "5649b2314bdc2d79388b4576",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
+                    Name = "Magpul Zhukov-S AK stock",
+                    StockTemplateId = "5b0e794b5acfc47a877359b2",
                     SizeReduceRight = 1,
                 },
             },
@@ -393,6 +536,55 @@ public class FoldThatStockServerPatch(
             : patch.Name.Trim();
 
         return key.Length == 0 || seen.Add(key);
+    }
+
+    private static object? GetMemberValue(object? source, params string[] memberNames)
+    {
+        if (source == null)
+        {
+            return null;
+        }
+
+        var type = source.GetType();
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.IgnoreCase;
+
+        foreach (var memberName in memberNames)
+        {
+            var property = type.GetProperty(memberName, flags);
+            if (property != null)
+            {
+                return property.GetValue(source);
+            }
+
+            var field = type.GetField(memberName, flags);
+            if (field != null)
+            {
+                return field.GetValue(source);
+            }
+        }
+
+        return null;
+    }
+
+    private static string? GetStringMemberValue(object? source, params string[] memberNames)
+    {
+        return GetMemberValue(source, memberNames)?.ToString();
+    }
+
+    private static IEnumerable<object?> EnumerateItems(object? value)
+    {
+        if (value == null || value is string)
+        {
+            yield break;
+        }
+
+        if (value is IEnumerable enumerable)
+        {
+            foreach (var item in enumerable)
+            {
+                yield return item;
+            }
+        }
     }
 
     private static void SaveConfig(string path, FoldThatStockServerConfig config)
