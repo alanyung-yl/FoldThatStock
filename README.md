@@ -4,6 +4,9 @@ Fresh implementation of the client plugin and SPT server patcher.
 
 The server patch enables foldable behavior on configured vanilla templates, and the client plugin handles the missing visual animation by binding a per-item stock visual controller to supported stock views.
 
+[![](https://img.shields.io/github/v/release/alanyung-yl/FoldThatStock?display_name=tag&sort=semver)](https://github.com/alanyung-yl/FoldThatStock/releases/latest)
+[![](https://img.shields.io/github/downloads/alanyung-yl/FoldThatStock/total)](https://github.com/alanyung-yl/FoldThatStock/releases)
+
 ## Current Behavior
 
 - Server-side config is generated from `CreateDefaultConfig()` when missing.
