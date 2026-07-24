@@ -14,7 +14,7 @@ namespace FoldThatStock.Server;
 
 public record ModMetadata : AbstractModMetadata
 {
-    public override string ModGuid { get; init; } = "com.foldthatstock.server";
+    public override string ModGuid { get; init; } = "com.foldthatstock";
     public override string Name { get; init; } = "FoldThatStock";
     public override string Author { get; init; } = "alanyung-yl";
     public override List<string>? Contributors { get; init; }
