@@ -7,6 +7,8 @@ using System.Reflection;
 using BepInEx;
 using EFT;
 using EFT.InventoryLogic;
+using EFT.InventoryLogic.Operations;
+using EFT.Visual;
 using HarmonyLib;
 using UnityEngine;
 
@@ -17,7 +19,7 @@ namespace FoldThatStock
     {
         public const string PluginGuid = "com.foldthatstock";
         public const string PluginName = "FoldThatStock";
-        public const string PluginVersion = "1.0.1";
+        public const string PluginVersion = "2.0.0";
 
         private static readonly Vector3 SigMpxMcxRetractedPosition = new Vector3(0f, 0.0102f, 0.092f);
 
@@ -49,7 +51,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "sig_thin_folding_stock",
-                DisplayName = "SIG thin folding stock",
+                DisplayName = "SIG Sauer Thin Side-Folding Stock",
                 StockPathContains = "stock_all_sig_thin_folding_stock",
                 TargetBoneNamePatterns = new[] { "mod_stock_folding" },
                 BundleFileName = "stock_all_sig_thin_folding_stock.bundle",
@@ -59,7 +61,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "sig_folding_knuckle",
-                DisplayName = "SIG folding knuckle",
+                DisplayName = "SIG Sauer Folding Knuckle Stock Adapter",
                 StockPathContains = "stock_all_sig_folding_knuckle",
                 TargetBoneNamePatterns = new[] { "stk_rt" },
                 BundleFileName = "stock_all_sig_folding_knuckle.bundle",
@@ -69,7 +71,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "mpx_pmm_ulss_stock",
-                DisplayName = "PMM ULSS stock",
+                DisplayName = "MPX/MCX PMM ULSS stock",
                 StockPathContains = "stock_mpx_pmm_ulss",
                 TargetBoneNamePatterns = new[] { "mod_stock" },
                 BundleFileName = "stock_mpx_pmm_ulss.bundle",
@@ -79,7 +81,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "sig_telescoping_stock",
-                DisplayName = "SIG telescoping stock",
+                DisplayName = "SIG Sauer Telescoping/Folding Stock",
                 StockPathContains = "stock_all_sig_telescoping_stock",
                 TargetBoneNamePatterns = new[] { "mod_stock" },
                 BundleFileName = "stock_all_sig_telescoping_stock.bundle",
@@ -89,7 +91,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "sig_mpx_mcx_early_type_stock",
-                DisplayName = "SIG MPX/MCX early type stock",
+                DisplayName = "SIG Sauer Collapsing/Telescoping Stock",
                 StockPathContains = "stock_all_sig_mpx_mcx_early_type",
                 TargetBoneNamePatterns = new[] { "mod_stock_000" },
                 KeepUnfoldedRotation = true,
@@ -99,7 +101,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "sig_mpx_brace",
-                DisplayName = "SIG MPX brace",
+                DisplayName = "SB Tactical MPX Pistol Stabilizing Brace",
                 StockPathContains = "stock_all_sig_mpx_brace",
                 TargetBoneNamePatterns = new[] { "mod_stock_001" },
                 KeepUnfoldedRotation = true,
@@ -109,7 +111,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "sig_stock_locking_hinge_assembly",
-                DisplayName = "SIG stock locking hinge assembly",
+                DisplayName = "SIG Sauer Locking Stock Hinge Assembly",
                 StockPathContains = "stock_all_sig_stock_locking_hinge_assembly",
                 TargetBoneNamePatterns = new[] { "mod_stock_001" },
                 BundleFileName = "stock_all_sig_stock_locking_hinge_assembly.bundle",
@@ -119,7 +121,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "ak_utg_sfs_adapter",
-                DisplayName = "UTG SFS AK adapter",
+                DisplayName = "AKM/AK-74 ME4 buffer tube adapter",
                 StockPathContains = "stock_ak_utg_sfs_adapter",
                 TargetBoneNamePatterns = new[] { "mod_stock_001" },
                 HasFoldedRotation = true,
@@ -131,7 +133,7 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "ak_magpul_zhukov_s",
-                DisplayName = "Magpul Zhukov-S AK stock",
+                DisplayName = "AKM/AK-74 Magpul Zhukov-S stock",
                 StockPathContains = "stock_ak_magpul_zhukov_s",
                 TargetBoneNamePatterns = new[] { "mod_stock_folding" },
                 HasFoldedRotation = true,
@@ -243,14 +245,19 @@ namespace FoldThatStock
             path = overridePath;
         }
 
-        internal void CompleteFoldOperationIfSupported(object operationState, FoldOperationClass foldOperation)
+        internal void CompleteFoldOperationIfSupported(object operationState, FoldOperation foldOperation)
         {
             if (operationState == null || !IsSupportedFoldOperation(foldOperation))
             {
                 return;
             }
 
-            MethodInfo completeMethod = AccessTools.Method(operationState.GetType(), "method_5", Type.EmptyTypes);
+            MethodInfo completeMethod = operationState.GetType().GetMethod(
+                "SwitchToIdle",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly,
+                null,
+                Type.EmptyTypes,
+                null);
             if (completeMethod == null)
             {
                 Logger.LogWarning("Fold operation fallback skipped: completion method was not found.");
@@ -278,15 +285,19 @@ namespace FoldThatStock
                 return true;
             }
 
-            FieldInfo foldOperationField = AccessTools.Field(operationState.GetType(), "FoldOperationClass");
-            if (foldOperationField == null)
+            FieldInfo[] foldOperationFields = operationState.GetType()
+                .GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+                .Where(field => field.FieldType == typeof(FoldOperation))
+                .ToArray();
+
+            if (foldOperationFields.Length != 1)
             {
                 return true;
             }
 
             try
             {
-                return foldOperationField.GetValue(operationState) != null;
+                return foldOperationFields[0].GetValue(operationState) != null;
             }
             catch
             {
@@ -309,7 +320,7 @@ namespace FoldThatStock
 
             try
             {
-                Item rootItem = global::GClass3380.GetRootItem(item);
+                Item rootItem = item.GetRootItem();
                 if (rootItem == null)
                 {
                     return null;
@@ -360,8 +371,8 @@ namespace FoldThatStock
 
             try
             {
-                Item rootItem = global::GClass3380.GetRootItem(item) ?? item;
-                foreach (Item child in global::GClass3380.GetAllItems(rootItem))
+                Item rootItem = item.GetRootItem() ?? item;
+                foreach (Item child in rootItem.GetAllItems())
                 {
                     if (ItemMatchesBuiltInDefinition(child))
                     {
@@ -426,7 +437,7 @@ namespace FoldThatStock
             return false;
         }
 
-        private static bool IsSupportedFoldOperation(FoldOperationClass foldOperation)
+        private static bool IsSupportedFoldOperation(FoldOperation foldOperation)
         {
             if (foldOperation == null || foldOperation.Foldable == null)
             {
@@ -698,9 +709,27 @@ namespace FoldThatStock
             return string.Equals(value, innerPattern, StringComparison.OrdinalIgnoreCase);
         }
 
-        [HarmonyPatch(typeof(global::GClass768.GClass769), "InsertItem")]
+        [HarmonyPatch]
         private static class ContainerViewInsertItemPatch
         {
+            private static MethodBase TargetMethod()
+            {
+                Type slotViewType = typeof(Item).Assembly.GetType("ContainerCollectionView+SlotView", false);
+                MethodInfo insertItemMethod = slotViewType?.GetMethod(
+                    "InsertItem",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly,
+                    null,
+                    new[] { typeof(Item), typeof(GameObject) },
+                    null);
+
+                if (insertItemMethod == null || insertItemMethod.ReturnType != typeof(void))
+                {
+                    throw new MissingMethodException("FoldThatStock could not resolve ContainerCollectionView.SlotView.InsertItem(Item, GameObject).");
+                }
+
+                return insertItemMethod;
+            }
+
             private static void Postfix(Item item, GameObject itemView)
             {
                 Instance?.TryAttachVisualController(item, itemView);
@@ -736,20 +765,13 @@ namespace FoldThatStock
         {
             private static MethodBase TargetMethod()
             {
-                Type operationType = AccessTools.TypeByName("EFT.Player+FirearmController+Class1269");
-                if (operationType == null)
-                {
-                    return null;
-                }
-
-                return AccessTools.GetDeclaredMethods(operationType)
-                    .FirstOrDefault(method => method.Name == "Start" && method.GetParameters().Length == 2);
+                return ResolveFoldStockOperationMethod(IsFoldStockStartMethod, "Start(FoldOperation, Callback)");
             }
 
             private static void Postfix(object __instance, object[] __args)
             {
-                FoldOperationClass foldOperation = __args != null && __args.Length > 0
-                    ? __args[0] as FoldOperationClass
+                FoldOperation foldOperation = __args != null && __args.Length > 0
+                    ? __args[0] as FoldOperation
                     : null;
 
                 Instance?.CompleteFoldOperationIfSupported(__instance, foldOperation);
@@ -761,14 +783,7 @@ namespace FoldThatStock
         {
             private static MethodBase TargetMethod()
             {
-                Type operationType = AccessTools.TypeByName("EFT.Player+FirearmController+Class1269");
-                if (operationType == null)
-                {
-                    return null;
-                }
-
-                return AccessTools.GetDeclaredMethods(operationType)
-                    .FirstOrDefault(method => method.Name == "OnFold" && method.GetParameters().Length == 1);
+                return ResolveFoldStockOperationMethod(IsFoldStockOnFoldMethod, "OnFold(bool)");
             }
 
             private static bool Prefix(object __instance)
@@ -776,9 +791,54 @@ namespace FoldThatStock
                 return Instance == null || Instance.ShouldAllowFoldAnimationEvent(__instance);
             }
         }
+
+        private static MethodInfo ResolveFoldStockOperationMethod(Func<MethodInfo, bool> predicate, string description)
+        {
+            Type[] operationTypes = typeof(Player.FirearmController)
+                .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(type => AccessTools.GetDeclaredMethods(type).Any(IsFoldStockStartMethod))
+                .ToArray();
+
+            if (operationTypes.Length != 1)
+            {
+                throw new MissingMethodException(
+                    $"FoldThatStock expected one firearm fold operation type, but found {operationTypes.Length}.");
+            }
+
+            MethodInfo[] methods = AccessTools.GetDeclaredMethods(operationTypes[0])
+                .Where(predicate)
+                .ToArray();
+
+            if (methods.Length != 1)
+            {
+                throw new MissingMethodException(
+                    $"FoldThatStock expected one {description} method on {operationTypes[0].FullName}, but found {methods.Length}.");
+            }
+
+            return methods[0];
+        }
+
+        private static bool IsFoldStockStartMethod(MethodInfo method)
+        {
+            ParameterInfo[] parameters = method.GetParameters();
+            return method.Name == "Start"
+                && method.ReturnType == typeof(void)
+                && parameters.Length == 2
+                && parameters[0].ParameterType == typeof(FoldOperation)
+                && parameters[1].ParameterType.FullName == "Comfort.Common.Callback";
+        }
+
+        private static bool IsFoldStockOnFoldMethod(MethodInfo method)
+        {
+            ParameterInfo[] parameters = method.GetParameters();
+            return method.Name == "OnFold"
+                && method.ReturnType == typeof(void)
+                && parameters.Length == 1
+                && parameters[0].ParameterType == typeof(bool);
+        }
     }
 
-    public sealed class FoldThatStockVisualController : MonoBehaviour, GInterface236
+    public sealed class FoldThatStockVisualController : MonoBehaviour, IDress
     {
         private const float TransitionSeconds = 0.12f;
 

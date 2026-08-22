@@ -19,27 +19,27 @@ The server patch enables foldable behavior on configured vanilla templates, and 
 
 ## Supported Stocks
 
-- SIG Sauer Thin Side-Folding Stock (`stock_all_sig_thin_folding_stock`)
-- SIG folding knuckle (`stock_all_sig_folding_knuckle`)
-- PMM ULSS stock (`stock_mpx_pmm_ulss`)
-- SIG telescoping stock (`stock_all_sig_telescoping_stock`)
-- SIG MPX/MCX early type stock (`stock_all_sig_mpx_mcx_early_type`)
-- SIG MPX brace (`stock_all_sig_mpx_brace`)
-- SIG stock locking hinge assembly (`stock_all_sig_stock_locking_hinge_assembly`)
-- UTG SFS AK adapter (`stock_ak_utg_sfs_adapter`)
-- Magpul Zhukov-S AK stock (`stock_ak_magpul_zhukov_s`)
+- SIG Sauer Thin Side-Folding Stock
+- SIG Sauer Folding Knuckle Stock Adapter
+- MPX/MCX PMM ULSS stock
+- SIG Sauer Telescoping/Folding Stock
+- SIG Sauer Collapsing/Telescoping Stock
+- SB Tactical MPX Pistol Stabilizing Brace
+- SIG Sauer Locking Stock Hinge Assembly
+- AKM/AK-74 ME4 buffer tube adapter
+- AKM/AK-74 Magpul Zhukov-S stock
 
 ## Supported Weapons
 
-- SIG MCX .300 Blackout
-- SIG MPX 9x19
-- AK-74N 5.45x39 with ME4 buffer tube adapter
-- AK-74 5.45x39 with ME4 buffer tube adapter
-- AKM 7.62x39 with ME4 buffer tube adapter
-- AKMN 7.62x39 with ME4 buffer tube adapter
-- VPO-136 Vepr-KM 7.62x39 with ME4 buffer tube adapter
-- VPO-209 .366 TKM with ME4 buffer tube adapter
-- RD-704 7.62x39 with ME4 buffer tube adapter
+- SIG MCX .300 Blackout assault rifle
+- SIG MPX 9x19 submachine gun
+- Kalashnikov AK-74N 5.45x39 assault rifle
+- Kalashnikov AK-74 5.45x39 assault rifle
+- Kalashnikov AKM 7.62x39 assault rifle
+- Kalashnikov AKMN 7.62x39 assault rifle
+- Molot Arms VPO-136 Vepr-KM 7.62x39 carbine
+- Molot Arms VPO-209 .366 TKM carbine
+- Rifle Dynamics RD-704 7.62x39 assault rifle
 
 ## Default Server Template Patches
 
@@ -51,7 +51,7 @@ The server patch enables foldable behavior on configured vanilla templates, and 
 - Weapon `5a0ec13bfcdbcb00165aa685` (`weapon_akmn_762x39`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Weapon `59e6152586f77473dc057aa1` (`weapon_vpo136_762x39`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Weapon `59e6687d86f77411d949b251` (`weapon_vpo209_366tkm`): `Foldable=true`, `FoldedSlot=mod_stock`
-- Weapon `628a60ae6b1d481ff772e9c8` (`weapon_rd704_762x39`): `Foldable=true`, `FoldedSlot=mod_stock`
+- Weapon `628a60ae6b1d481ff772e9c8` (`weapon_rd704_762x39`): `Foldable=true`, `FoldedSlot=mod_stock_000`
 - Stock `5fbcc437d724d907e2077d5c` (`stock_all_sig_thin_folding_stock`): `SizeReduceRight=1`
 - Stock `58ac1bf086f77420ed183f9f` (`stock_all_sig_folding_knuckle`): `SizeReduceRight=1`
 - Stock `5c5db6f82e2216003a0fe914` (`stock_mpx_pmm_ulss`): `SizeReduceRight=1`
