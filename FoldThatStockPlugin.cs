@@ -225,6 +225,7 @@ namespace FoldThatStock
         private readonly HashSet<string> _loggedAnimationFailures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _loggedPreviewRepairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<object> _animatedFoldOperations = new HashSet<object>();
+        private readonly HashSet<FoldableComponent> _animatedFoldables = new HashSet<FoldableComponent>();
 
         private readonly DonorAnimationProfile _umpDonor = new DonorAnimationProfile
         {
@@ -299,6 +300,7 @@ namespace FoldThatStock
             UnloadDonorProfile(_mp5Donor);
             UnloadDonorProfile(_aks74uDonor);
             _animatedFoldOperations.Clear();
+            _animatedFoldables.Clear();
 
             if (ReferenceEquals(Instance, this))
             {
@@ -505,6 +507,11 @@ namespace FoldThatStock
                 _animatedFoldOperations.Remove(operationState);
             }
 
+            if (foldOperation?.Foldable != null)
+            {
+                _animatedFoldables.Remove(foldOperation.Foldable);
+            }
+
             ReleaseVisualStock(foldOperation?.Foldable, true, FoldThatStockVisualController.DefaultTransitionSeconds);
             if (completeOperation && !_isShuttingDown && IsFoldOperationCurrent(operationState, foldOperation))
             {
@@ -630,11 +637,43 @@ namespace FoldThatStock
             }
 
             _animatedFoldOperations.Add(operationState);
+            _animatedFoldables.Add(foldOperation.Foldable);
             HoldVisualStock(foldOperation.Foldable, foldOperation.NewValue);
             Logger.LogInfo(
                 $"Playing {profile.DisplayName} hybrid clip {clip.name} through Animator {animator.name} "
                 + $"for {stockDefinition?.DisplayName ?? "the selected stock"} (length {clip.length:0.000}s).");
             return true;
+        }
+
+        // The EFT fold operation returns to idle at the beginning of our final pose fade.
+        // Keep the same weapon input-locked until the overlay itself has fully finished so a
+        // second FoldStock command cannot silently toggle the logical state during that fade.
+        internal bool IsFoldInputLocked(Item item)
+        {
+            if (_isShuttingDown || item == null || _animatedFoldables.Count == 0)
+            {
+                return false;
+            }
+
+            try
+            {
+                Item rootItem = item.GetRootItem() ?? item;
+                foreach (FoldableComponent foldable in _animatedFoldables)
+                {
+                    Item animatedItem = foldable?.Item;
+                    if (animatedItem != null && ReferenceEquals(animatedItem.GetRootItem() ?? animatedItem, rootItem))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                // A weapon can disappear during controller teardown; allow EFT to handle the
+                // input normally in that exceptional state instead of leaving a global lock.
+            }
+
+            return false;
         }
 
         // Keep the successful UMP synchronization ratios, scaled to each donor's native clip
@@ -1563,6 +1602,44 @@ namespace FoldThatStock
             private static void Prefix(ref string path)
             {
                 Instance?.RedirectBundlePath(ref path);
+            }
+        }
+
+        // Ignore only the in-raid fold hotkey while this weapon's donor overlay is active.
+        // In particular, this covers the 0.30-second final handoff after EFT has already
+        // returned to idle and would otherwise accept a second, unanimated fold operation.
+        [HarmonyPatch(typeof(FirearmHandsInputTranslator), nameof(FirearmHandsInputTranslator.TranslateCommand))]
+        private static class FoldStockInputGuardPatch
+        {
+            private static readonly FieldInfo ControllerField = typeof(FirearmHandsInputTranslator)
+                .GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .SingleOrDefault(field => field.FieldType == typeof(IFirearmHandsController));
+
+            private static bool Prefix(
+                FirearmHandsInputTranslator __instance,
+                EFT.InputSystem.ECommand command,
+                ref EFT.InputSystem.InputNode.ETranslateResult __result)
+            {
+                if (command != EFT.InputSystem.ECommand.FoldStock || Instance == null || ControllerField == null)
+                {
+                    return true;
+                }
+
+                try
+                {
+                    IFirearmHandsController controller = ControllerField.GetValue(__instance) as IFirearmHandsController;
+                    if (controller == null || !Instance.IsFoldInputLocked(controller.Item))
+                    {
+                        return true;
+                    }
+
+                    __result = EFT.InputSystem.InputNode.ETranslateResult.Ignore;
+                    return false;
+                }
+                catch
+                {
+                    return true;
+                }
             }
         }
 

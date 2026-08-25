@@ -17,6 +17,7 @@ The server patch enables foldable behavior on configured vanilla templates, and 
 - Visual folded state is scoped to the item view that owns the stock, not a global mod state.
 - Fold operation fallback is only applied for supported FoldThatStock items.
 - In-raid fold operations use stock-selected donor animation: MP5 collapse for the MP5 A3 stock, SIG Collapsing/Telescoping Stock, and MPX brace; AKS-74U left-fold for other supported SIG stocks; and UMP right-fold for supported AK-platform weapons.
+- Repeated in-raid fold input is ignored until the active donor animation and its final pose handoff have finished.
 
 ## Supported Stocks
 
