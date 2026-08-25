@@ -1,28 +1,49 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>FoldThatStock.Server</RootNamespace>
     <AssemblyName>FoldThatStockServer</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Library</OutputType>
-    <Version>1.0.1</Version>
+    <Version>2.0.0</Version>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EnableDefaultItems>false</EnableDefaultItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <OutputPath>bin\$(Configuration)\SPT\user\mods\FoldThatStock\</OutputPath>
-    <SPTRoot Condition="'$(SPTRoot)' == ''">C:\SPT\SPT</SPTRoot>
-    <SPTServerModOutputDir>$(SPTRoot)\user\mods\FoldThatStock</SPTServerModOutputDir>
+    <OutputPath>bin\$(Configuration)\SPT_Runtime\user\mods\FoldThatStock\</OutputPath>
+    <SPTRoot Condition="'$(SPTRoot)' == ''">C:\SPT</SPTRoot>
+    <SPTRuntimePath>$(SPTRoot)\SPT_Runtime</SPTRuntimePath>
+    <SPTServerModOutputDir>$(SPTRuntimePath)\user\mods\FoldThatStock</SPTServerModOutputDir>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SPTarkov.Common" Version="4.0.13" />
-    <PackageReference Include="SPTarkov.DI" Version="4.0.13" />
-    <PackageReference Include="SPTarkov.Server.Core" Version="4.0.13" />
+    <Reference Include="SemanticVersioning">
+      <HintPath>$(SPTRuntimePath)\SemanticVersioning.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SPTarkov.Common">
+      <HintPath>$(SPTRuntimePath)\SPTarkov.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SPTarkov.DI">
+      <HintPath>$(SPTRuntimePath)\SPTarkov.DI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SPTarkov.Server.Core">
+      <HintPath>$(SPTRuntimePath)\SPTarkov.Server.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Compile Include="FoldThatStockServerPatch.cs" />
   </ItemGroup>
 
-  <Target Name="CopyServerModToSPT" AfterTargets="Build" Condition="'$(DeployToSPT)' != 'false' And Exists('$(SPTRoot)\SPT.Server.exe')">
+  <Target Name="ValidateSPTRoot" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(SPTRuntimePath)\SemanticVersioning.dll')" Text="SemanticVersioning.dll not found under $(SPTRuntimePath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(SPTRuntimePath)\SPTarkov.Common.dll')" Text="SPTarkov.Common.dll not found under $(SPTRuntimePath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(SPTRuntimePath)\SPTarkov.DI.dll')" Text="SPTarkov.DI.dll not found under $(SPTRuntimePath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(SPTRuntimePath)\SPTarkov.Server.Core.dll')" Text="SPTarkov.Server.Core.dll not found under $(SPTRuntimePath). Check your SPTRoot value." />
+  </Target>
+
+  <Target Name="CopyServerModToSPT" AfterTargets="Build" Condition="'$(DeployToSPT)' != 'false' And Exists('$(SPTRuntimePath)\SPT.Server.exe')">
     <MakeDir Directories="$(SPTServerModOutputDir)" />
 
     <ItemGroup>

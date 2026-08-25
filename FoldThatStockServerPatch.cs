@@ -2,29 +2,29 @@ using System.Collections;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Spt.Mod;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Models.Spt.Tables;
 using TemplateItem = SPTarkov.Server.Core.Models.Eft.Common.Tables.TemplateItem;
 
 namespace FoldThatStock.Server;
 
-public record ModMetadata : AbstractModMetadata
+public record ModMetadata : IModMetadata
 {
-    public override string ModGuid { get; init; } = "com.foldthatstock";
-    public override string Name { get; init; } = "FoldThatStock";
-    public override string Author { get; init; } = "alanyung-yl";
-    public override List<string>? Contributors { get; init; }
-    public override SemanticVersioning.Version Version { get; init; } = new("1.0.1");
-    public override SemanticVersioning.Range SptVersion { get; init; } = new("~4.0.0");
-    public override List<string>? Incompatibilities { get; init; }
-    public override Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
-    public override string? Url { get; init; }
-    public override bool? IsBundleMod { get; init; }
-    public override string License { get; init; } = "MIT";
+    public string ModGuid { get; init; } = "com.foldthatstock";
+    public string Name { get; init; } = "FoldThatStock";
+    public string Author { get; init; } = "alanyung-yl";
+    public List<string>? Contributors { get; init; }
+    public SemanticVersioning.Version Version { get; init; } = new("2.0.0");
+    public SemanticVersioning.Range SptVersion { get; init; } = new("~4.1.0");
+    public bool HasPrepatcher { get; init; }
+    public List<string>? Incompatibilities { get; init; }
+    public Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
+    public string? Url { get; init; }
+    public string License { get; init; } = "MIT";
 }
 
 public sealed class FoldThatStockServerConfig
@@ -52,10 +52,10 @@ public sealed class StockTemplatePatch
     public int? SizeReduceRight { get; set; } = 1;
 }
 
-[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 1)]
+[Injectable(TypePriority = OnLoadOrder.PostLoad + 1)]
 public class FoldThatStockServerPatch(
     ISptLogger<FoldThatStockServerPatch> logger,
-    DatabaseService databaseService
+    TemplateTable templateTable
 ) : IOnLoad
 {
     private const string LogPrefix = "FoldThatStock:";
@@ -72,6 +72,7 @@ public class FoldThatStockServerPatch(
         "6529348224cbe3c74a05e5c4",
         "5649b2314bdc2d79388b4576",
         "5b0e794b5acfc47a877359b2",
+        "5926d40686f7740f152b6b7e",
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -80,7 +81,7 @@ public class FoldThatStockServerPatch(
         WriteIndented = true,
     };
 
-    public Task OnLoad()
+    public Task OnLoadAsync(CancellationToken cancellationToken)
     {
         var config = LoadOrCreateConfig();
         if (!config.Enabled)
@@ -89,7 +90,7 @@ public class FoldThatStockServerPatch(
             return Task.CompletedTask;
         }
 
-        var items = databaseService.GetItems();
+        var items = templateTable.Items;
         var patchedWeapons = 0;
         var patchedStocks = 0;
         var patchedFoldBlocks = 0;
@@ -354,7 +355,12 @@ public class FoldThatStockServerPatch(
         {
             var configContent = File.ReadAllText(configPath);
             var config = JsonSerializer.Deserialize<FoldThatStockServerConfig>(configContent, JsonOptions) ?? CreateDefaultConfig();
-            NormalizeConfig(config);
+            if (NormalizeConfig(config))
+            {
+                SaveConfig(configPath, config);
+                logger.Info($"{LogPrefix} Added newly supported built-in items to `{configPath}`.");
+            }
+
             return config;
         }
         catch (Exception exception)
@@ -379,50 +385,56 @@ public class FoldThatStockServerPatch(
                 },
                 new()
                 {
-                    Name = "SIG folding knuckle",
+                    Name = "SIG Sauer Folding Knuckle Stock Adapter",
                     StockTemplateId = "58ac1bf086f77420ed183f9f",
                     SizeReduceRight = 1,
                 },
                 new()
                 {
-                    Name = "PMM ULSS stock",
+                    Name = "MPX/MCX PMM ULSS stock",
                     StockTemplateId = "5c5db6f82e2216003a0fe914",
                     SizeReduceRight = 1,
                 },
                 new()
                 {
-                    Name = "SIG telescoping stock",
+                    Name = "SIG Sauer Telescoping/Folding Stock",
                     StockTemplateId = "5fbcc429900b1d5091531dd7",
                     SizeReduceRight = 1,
                 },
                 new()
                 {
-                    Name = "SIG MPX/MCX early type stock",
+                    Name = "SIG Sauer Collapsing/Telescoping Stock",
                     StockTemplateId = "5894a13e86f7742405482982",
                     SizeReduceRight = 1,
                 },
                 new()
                 {
-                    Name = "SIG MPX brace",
+                    Name = "SB Tactical MPX Pistol Stabilizing Brace",
                     StockTemplateId = "6761496fe2cf1419500357e9",
                     SizeReduceRight = 1,
                 },
                 new()
                 {
-                    Name = "SIG stock locking hinge assembly",
+                    Name = "SIG Sauer Locking Stock Hinge Assembly",
                     StockTemplateId = "6529348224cbe3c74a05e5c4",
                     SizeReduceRight = 1,
                 },
                 new()
                 {
-                    Name = "UTG SFS AK adapter",
+                    Name = "AKM/AK-74 ME4 buffer tube adapter",
                     StockTemplateId = "5649b2314bdc2d79388b4576",
                     SizeReduceRight = 1,
                 },
                 new()
                 {
-                    Name = "Magpul Zhukov-S AK stock",
+                    Name = "AKM/AK-74 Magpul Zhukov-S stock",
                     StockTemplateId = "5b0e794b5acfc47a877359b2",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
+                    Name = "HK MP5 A3 old model stock",
+                    StockTemplateId = "5926d40686f7740f152b6b7e",
                     SizeReduceRight = 1,
                 },
             },
@@ -430,64 +442,78 @@ public class FoldThatStockServerPatch(
             {
                 new()
                 {
-                    Name = "SIG MCX .300 Blackout with supported folding stock",
+                    Name = "SIG MCX .300 Blackout assault rifle",
                     WeaponTemplateId = "5fbcc1d9016cce60e8341ab3",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
                 new()
                 {
-                    Name = "SIG MPX 9x19 with supported folding stock",
+                    Name = "SIG MPX 9x19 submachine gun",
                     WeaponTemplateId = "58948c8e86f77409493f7266",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
                 new()
                 {
-                    Name = "AK-74N 5.45x39 with ME4 buffer tube adapter",
+                    Name = "SIG MCX-SPEAR 6.8x51 assault rifle",
+                    WeaponTemplateId = "65290f395ae2ae97b80fdf2d",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock_000",
+                },
+                new()
+                {
+                    Name = "Kalashnikov AK-74N 5.45x39 assault rifle",
                     WeaponTemplateId = "5644bd2b4bdc2d3b4c8b4572",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
                 new()
                 {
-                    Name = "AK-74 5.45x39 with ME4 buffer tube adapter",
+                    Name = "Kalashnikov AK-74 5.45x39 assault rifle",
                     WeaponTemplateId = "5bf3e03b0db834001d2c4a9c",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
                 new()
                 {
-                    Name = "AKM 7.62x39 with ME4 buffer tube adapter",
+                    Name = "Kalashnikov AKM 7.62x39 assault rifle",
                     WeaponTemplateId = "59d6088586f774275f37482f",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
                 new()
                 {
-                    Name = "AKMN 7.62x39 with ME4 buffer tube adapter",
+                    Name = "Kalashnikov AKMN 7.62x39 assault rifle",
                     WeaponTemplateId = "5a0ec13bfcdbcb00165aa685",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
                 new()
                 {
-                    Name = "VPO-136 Vepr-KM 7.62x39 with ME4 buffer tube adapter",
+                    Name = "Molot Arms VPO-136 Vepr-KM 7.62x39 carbine",
                     WeaponTemplateId = "59e6152586f77473dc057aa1",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
                 new()
                 {
-                    Name = "VPO-209 .366 TKM with ME4 buffer tube adapter",
+                    Name = "Molot Arms VPO-209 .366 TKM carbine",
                     WeaponTemplateId = "59e6687d86f77411d949b251",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
                 new()
                 {
-                    Name = "RD-704 7.62x39 with ME4 buffer tube adapter",
+                    Name = "Rifle Dynamics RD-704 7.62x39 assault rifle",
                     WeaponTemplateId = "628a60ae6b1d481ff772e9c8",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock_000",
+                },
+                new()
+                {
+                    Name = "HK MP5 Navy 3 9x19 submachine gun",
+                    WeaponTemplateId = "5926bb2186f7744b1c6c6e60",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
@@ -495,14 +521,58 @@ public class FoldThatStockServerPatch(
         };
     }
 
-    private static void NormalizeConfig(FoldThatStockServerConfig config)
+    // Preserve existing user settings while appending built-ins added by newer releases.
+    // Users can keep an entry disabled; only a completely missing template id is migrated.
+    private static bool NormalizeConfig(FoldThatStockServerConfig config)
     {
-        config.WeaponPatches ??= new List<WeaponFoldPatch>();
-        config.StockPatches ??= new List<StockTemplatePatch>();
+        var changed = false;
+        if (config.WeaponPatches == null)
+        {
+            config.WeaponPatches = new List<WeaponFoldPatch>();
+            changed = true;
+        }
+
+        if (config.StockPatches == null)
+        {
+            config.StockPatches = new List<StockTemplatePatch>();
+            changed = true;
+        }
+
         foreach (var weaponPatch in config.WeaponPatches.Where(patch => patch != null))
         {
-            weaponPatch.StockPatches ??= new List<StockTemplatePatch>();
+            if (weaponPatch.StockPatches == null)
+            {
+                weaponPatch.StockPatches = new List<StockTemplatePatch>();
+                changed = true;
+            }
         }
+
+        var defaults = CreateDefaultConfig();
+        foreach (var defaultWeaponPatch in defaults.WeaponPatches)
+        {
+            if (config.WeaponPatches.Any(existing => existing != null
+                && string.Equals(existing.WeaponTemplateId, defaultWeaponPatch.WeaponTemplateId, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            config.WeaponPatches.Add(defaultWeaponPatch);
+            changed = true;
+        }
+
+        foreach (var defaultStockPatch in defaults.StockPatches)
+        {
+            if (config.StockPatches.Any(existing => existing != null
+                && string.Equals(existing.StockTemplateId, defaultStockPatch.StockTemplateId, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            config.StockPatches.Add(defaultStockPatch);
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static IEnumerable<StockTemplatePatch> GetEnabledStockPatches(FoldThatStockServerConfig config)
