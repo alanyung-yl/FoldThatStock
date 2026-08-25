@@ -72,6 +72,7 @@ public class FoldThatStockServerPatch(
         "6529348224cbe3c74a05e5c4",
         "5649b2314bdc2d79388b4576",
         "5b0e794b5acfc47a877359b2",
+        "5926d40686f7740f152b6b7e",
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -354,7 +355,12 @@ public class FoldThatStockServerPatch(
         {
             var configContent = File.ReadAllText(configPath);
             var config = JsonSerializer.Deserialize<FoldThatStockServerConfig>(configContent, JsonOptions) ?? CreateDefaultConfig();
-            NormalizeConfig(config);
+            if (NormalizeConfig(config))
+            {
+                SaveConfig(configPath, config);
+                logger.Info($"{LogPrefix} Added newly supported built-in items to `{configPath}`.");
+            }
+
             return config;
         }
         catch (Exception exception)
@@ -425,6 +431,12 @@ public class FoldThatStockServerPatch(
                     StockTemplateId = "5b0e794b5acfc47a877359b2",
                     SizeReduceRight = 1,
                 },
+                new()
+                {
+                    Name = "HK MP5 A3 old model stock",
+                    StockTemplateId = "5926d40686f7740f152b6b7e",
+                    SizeReduceRight = 1,
+                },
             },
             WeaponPatches = new List<WeaponFoldPatch>
             {
@@ -441,6 +453,13 @@ public class FoldThatStockServerPatch(
                     WeaponTemplateId = "58948c8e86f77409493f7266",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
+                },
+                new()
+                {
+                    Name = "SIG MCX-SPEAR 6.8x51 assault rifle",
+                    WeaponTemplateId = "65290f395ae2ae97b80fdf2d",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock_000",
                 },
                 new()
                 {
@@ -491,18 +510,69 @@ public class FoldThatStockServerPatch(
                     Foldable = true,
                     FoldedSlot = "mod_stock_000",
                 },
+                new()
+                {
+                    Name = "HK MP5 Navy 3 9x19 submachine gun",
+                    WeaponTemplateId = "5926bb2186f7744b1c6c6e60",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock",
+                },
             },
         };
     }
 
-    private static void NormalizeConfig(FoldThatStockServerConfig config)
+    // Preserve existing user settings while appending built-ins added by newer releases.
+    // Users can keep an entry disabled; only a completely missing template id is migrated.
+    private static bool NormalizeConfig(FoldThatStockServerConfig config)
     {
-        config.WeaponPatches ??= new List<WeaponFoldPatch>();
-        config.StockPatches ??= new List<StockTemplatePatch>();
+        var changed = false;
+        if (config.WeaponPatches == null)
+        {
+            config.WeaponPatches = new List<WeaponFoldPatch>();
+            changed = true;
+        }
+
+        if (config.StockPatches == null)
+        {
+            config.StockPatches = new List<StockTemplatePatch>();
+            changed = true;
+        }
+
         foreach (var weaponPatch in config.WeaponPatches.Where(patch => patch != null))
         {
-            weaponPatch.StockPatches ??= new List<StockTemplatePatch>();
+            if (weaponPatch.StockPatches == null)
+            {
+                weaponPatch.StockPatches = new List<StockTemplatePatch>();
+                changed = true;
+            }
         }
+
+        var defaults = CreateDefaultConfig();
+        foreach (var defaultWeaponPatch in defaults.WeaponPatches)
+        {
+            if (config.WeaponPatches.Any(existing => existing != null
+                && string.Equals(existing.WeaponTemplateId, defaultWeaponPatch.WeaponTemplateId, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            config.WeaponPatches.Add(defaultWeaponPatch);
+            changed = true;
+        }
+
+        foreach (var defaultStockPatch in defaults.StockPatches)
+        {
+            if (config.StockPatches.Any(existing => existing != null
+                && string.Equals(existing.StockTemplateId, defaultStockPatch.StockTemplateId, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            config.StockPatches.Add(defaultStockPatch);
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static IEnumerable<StockTemplatePatch> GetEnabledStockPatches(FoldThatStockServerConfig config)

@@ -48,10 +48,19 @@
       <HintPath>$(ManagedPath)\UnityEngine.AssetBundleModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>$(ManagedPath)\UnityEngine.AnimationModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.DirectorModule">
+      <HintPath>$(ManagedPath)\UnityEngine.DirectorModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="FoldThatStockPlugin.cs" />
+    <Compile Include="FoldThatStockAnimationOverlay.cs" />
     <StockBundles Include="bundle\*.bundle" />
   </ItemGroup>
 
@@ -63,6 +72,8 @@
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.dll')" Text="UnityEngine.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.CoreModule.dll')" Text="UnityEngine.CoreModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.AssetBundleModule.dll')" Text="UnityEngine.AssetBundleModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(ManagedPath)\UnityEngine.AnimationModule.dll')" Text="UnityEngine.AnimationModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(ManagedPath)\UnityEngine.DirectorModule.dll')" Text="UnityEngine.DirectorModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
   </Target>
 
   <Target Name="CopyToLocalPluginFolder" AfterTargets="Build">
