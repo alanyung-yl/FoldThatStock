@@ -24,7 +24,7 @@ public record ModMetadata : IModMetadata
     public List<string>? Incompatibilities { get; init; }
     public Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
     public string? Url { get; init; }
-    public string License { get; init; } = "GNU GPLv3";
+    public string License { get; init; } = "GPL-3.0-only";
 }
 
 public sealed class FoldThatStockServerConfig
@@ -62,6 +62,7 @@ public class FoldThatStockServerPatch(
 {
     private const string LogPrefix = "FoldThatStock:";
     private const string DefaultFoldedSlot = "mod_stock";
+    private const string Mp5WeaponTemplateId = "5926bb2186f7744b1c6c6e60";
 
     private static readonly string[] BuiltInSupportedStockTemplateIds =
     {
@@ -79,6 +80,9 @@ public class FoldThatStockServerPatch(
         "5cdeac22d7f00c000f26168f", // M700 Pro 700 chassis hosting the folding stock
         "5cdeac42d7f00c000d36ba73",
         "5b7d64555acfc4001876c8e2",
+        "5b7d63cf5acfc4001876c8df",
+        "5b7d63de5acfc400170e2f8d",
+        "5b099bf25acfc4001637e683",
         "5fb655b748c711690e3a8d5a",
     };
 
@@ -151,7 +155,10 @@ public class FoldThatStockServerPatch(
             changed |= TrySetTemplateProperty(template.Properties, "FoldedSlot", patch.FoldedSlot, patch.Name, patch.WeaponTemplateId);
         }
 
-        if (patch.SizeReduceRight.HasValue)
+        // MP5 is the only weapon-level sizing exception: its stock slot belongs to the
+        // nested receiver, so a stock-only reduction cannot resize the weapon root.
+        if (patch.SizeReduceRight.HasValue
+            && string.Equals(patch.WeaponTemplateId, Mp5WeaponTemplateId, StringComparison.OrdinalIgnoreCase))
         {
             changed |= TrySetTemplateProperty(template.Properties, "SizeReduceRight", patch.SizeReduceRight.Value, patch.Name, patch.WeaponTemplateId);
         }
@@ -468,8 +475,29 @@ public class FoldThatStockServerPatch(
                 },
                 new()
                 {
-                    Name = "DS Arms SA-58 BRS stock",
+                    Name = "SA-58 BRS stock",
                     StockTemplateId = "5b7d64555acfc4001876c8e2",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "SA58 folding stock",
+                    StockTemplateId = "5b7d63cf5acfc4001876c8df",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "SA58 SPR stock",
+                    StockTemplateId = "5b7d63de5acfc400170e2f8d",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "SA58 buffer tube adapter",
+                    StockTemplateId = "5b099bf25acfc4001637e683",
                     SizeReduceRight = 1,
                     BlocksFolding = false,
                 },
@@ -552,7 +580,6 @@ public class FoldThatStockServerPatch(
                     WeaponTemplateId = "628a60ae6b1d481ff772e9c8",
                     Foldable = true,
                     FoldedSlot = "mod_stock_000",
-                    SizeReduceRight = 1,
                 },
                 new()
                 {
@@ -560,7 +587,6 @@ public class FoldThatStockServerPatch(
                     WeaponTemplateId = "5b0bbe4e5acfc40dc528a72d",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
-                    SizeReduceRight = 1,
                 },
                 new()
                 {
@@ -568,7 +594,6 @@ public class FoldThatStockServerPatch(
                     WeaponTemplateId = "5926bb2186f7744b1c6c6e60",
                     Foldable = true,
                     // The MP5 stock slot belongs to its nested receiver, not the weapon root.
-                    // Keep the root slot empty and apply the one-cell reduction directly.
                     FoldedSlot = "",
                     SizeReduceRight = 1,
                 },
@@ -605,6 +630,15 @@ public class FoldThatStockServerPatch(
             if (weaponPatch.StockPatches == null)
             {
                 weaponPatch.StockPatches = new List<StockTemplatePatch>();
+                changed = true;
+            }
+
+            // Remove legacy weapon-level reductions such as the old RD-704 default.
+            // MP5 remains the sole exception because its stock slot is receiver-owned.
+            if (!string.Equals(weaponPatch.WeaponTemplateId, Mp5WeaponTemplateId, StringComparison.OrdinalIgnoreCase)
+                && weaponPatch.SizeReduceRight.HasValue)
+            {
+                weaponPatch.SizeReduceRight = null;
                 changed = true;
             }
         }

@@ -59,6 +59,8 @@ namespace FoldThatStock
 
         internal static readonly Quaternion DefaultFoldedRotation = new Quaternion(0f, 0.7071068f, 0.7071068f, 0f);
         internal static readonly Quaternion DefaultRightFoldedRotation = new Quaternion(0f, -0.7071068f, -0.7071068f, 0f);
+        private static readonly Quaternion Sa58BrsFoldedRotation = new Quaternion(-0.02192926f, -0.83048016f, 0.03819934f, 0.55530408f);
+        private static readonly Quaternion Sa58BufferTubeAdapterFoldedRotation = new Quaternion(0f, 0f, -0.99999999f, 0f);
         private static readonly Quaternion FoldingStockPreviewRotationCorrection = Quaternion.Euler(0f, -90f, 0f);
 
         internal sealed class VisualStockDefinition
@@ -251,16 +253,54 @@ namespace FoldThatStock
             new VisualStockDefinition
             {
                 Id = "sa58_brs_stock",
-                DisplayName = "DS Arms SA-58 BRS stock",
+                DisplayName = "SA-58 BRS stock",
                 TemplateId = "5b7d64555acfc4001876c8e2",
                 StockPathContains = "stock_sa58_ds_arms_para_brs",
                 TargetBoneNamePatterns = new[] { "mod_stock_folding" },
                 HasFoldedRotation = true,
-                FoldedRotation = DefaultRightFoldedRotation,
+                FoldedRotation = Sa58BrsFoldedRotation,
                 CorrectReversedPreview = true,
                 BundleFileName = "stock_sa58_ds_arms_para_brs.bundle",
                 BundleSourcePathContains = "assets/content/items/mods/stocks/stock_sa58_ds_arms_para_brs.bundle",
                 BundleOverridePath = Path.Combine("FoldThatStock", "stock_sa58_ds_arms_para_brs.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "sa58_folding_stock",
+                DisplayName = "SA58 folding stock",
+                TemplateId = "5b7d63cf5acfc4001876c8df",
+                StockPathContains = "stock_sa58_ds_arms_para_folding_stock",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding" },
+                HasFoldedRotation = true,
+                FoldedRotation = DefaultRightFoldedRotation,
+                CorrectReversedPreview = true,
+                BundleFileName = "stock_sa58_ds_arms_para_folding_stock.bundle",
+                BundleSourcePathContains = "assets/content/items/mods/stocks/stock_sa58_ds_arms_para_folding_stock.bundle",
+                BundleOverridePath = Path.Combine("FoldThatStock", "stock_sa58_ds_arms_para_folding_stock.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "sa58_spr_stock",
+                DisplayName = "SA58 SPR stock",
+                TemplateId = "5b7d63de5acfc400170e2f8d",
+                StockPathContains = "stock_sa58_ds_arms_para_spr_stock",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding" },
+                HasFoldedRotation = true,
+                FoldedRotation = DefaultRightFoldedRotation,
+                CorrectReversedPreview = true,
+                BundleFileName = "stock_sa58_ds_arms_para_spr_stock.bundle",
+                BundleSourcePathContains = "assets/content/items/mods/stocks/stock_sa58_ds_arms_para_spr_stock.bundle",
+                BundleOverridePath = Path.Combine("FoldThatStock", "stock_sa58_ds_arms_para_spr_stock.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "sa58_folding_buffer_tube_adapter",
+                DisplayName = "SA58 buffer tube adapter",
+                TemplateId = "5b099bf25acfc4001637e683",
+                StockPathContains = "stock_sa58_ds_arms_para_folding_buffer_tube_adapter",
+                TargetBoneNamePatterns = new[] { "mod_stock_axis" },
+                HasFoldedRotation = true,
+                FoldedRotation = Sa58BufferTubeAdapterFoldedRotation
             },
             new VisualStockDefinition
             {

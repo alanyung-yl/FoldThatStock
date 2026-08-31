@@ -62,7 +62,7 @@
   <ItemGroup>
     <Compile Include="FoldThatStockPlugin.cs" />
     <Compile Include="FoldThatStockAnimationOverlay.cs" />
-    <StockBundles Include="bundle\*.bundle" />
+    <StockBundles Include="Assets\*.bundle" />
   </ItemGroup>
 
   <Target Name="ValidateSPTRoot" BeforeTargets="ResolveReferences">

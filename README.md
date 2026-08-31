@@ -33,7 +33,10 @@ Version 2.0.0 introduces script-driven first-person animations for SPT 4.1.3. Th
 - HK MP5 A3 old model stock
 - M700 AI AT AICS polymer chassis
 - M700 Magpul Pro 700 folding stock
-- DS Arms SA-58 BRS stock
+- SA58 BRS stock
+- SA58 folding stock
+- SA58 SPR stock
+- SA58 buffer tube adapter
 - KRISS Vector non-folding stock adapter
 
 ## Supported Weapons
@@ -65,8 +68,8 @@ Version 2.0.0 introduces script-driven first-person animations for SPT 4.1.3. Th
 - Weapon `5a0ec13bfcdbcb00165aa685` (`weapon_akmn_762x39`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Weapon `59e6152586f77473dc057aa1` (`weapon_vpo136_762x39`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Weapon `59e6687d86f77411d949b251` (`weapon_vpo209_366tkm`): `Foldable=true`, `FoldedSlot=mod_stock`
-- Weapon `628a60ae6b1d481ff772e9c8` (`weapon_rd704_762x39`): `Foldable=true`, `FoldedSlot=mod_stock_000`, `SizeReduceRight=1`
-- Weapon `5b0bbe4e5acfc40dc528a72d` (`weapon_dsa_sa58_762x51`): `Foldable=true`, `FoldedSlot=mod_stock`, `SizeReduceRight=1`
+- Weapon `628a60ae6b1d481ff772e9c8` (`weapon_rd704_762x39`): `Foldable=true`, `FoldedSlot=mod_stock_000`
+- Weapon `5b0bbe4e5acfc40dc528a72d` (`weapon_dsa_sa58_762x51`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Weapon `5926bb2186f7744b1c6c6e60` (`weapon_hk_mp5_navy3_9x19`): `Foldable=true`, `FoldedSlot=""`, `SizeReduceRight=1`
 - Weapon `5bfea6e90db834001b7347f3` (`weapon_remington_m700_762x51`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Stock `5fbcc437d724d907e2077d5c` (`stock_all_sig_thin_folding_stock`): `SizeReduceRight=1`
@@ -82,6 +85,9 @@ Version 2.0.0 introduces script-driven first-person animations for SPT 4.1.3. Th
 - Stock `5d25d0ac8abbc3054f3e61f7` (`stock_m700_ai_at_aics_chasiss`): `SizeReduceRight=1`
 - Stock `5cdeac42d7f00c000d36ba73` (`stock_m700_magpul_pro_700_folding_stock`): `SizeReduceRight=1`
 - Stock `5b7d64555acfc4001876c8e2` (`stock_sa58_ds_arms_para_brs`): `SizeReduceRight=1`, `BlocksFolding=false`
+- Stock `5b7d63cf5acfc4001876c8df` (`stock_sa58_ds_arms_para_folding_stock`): `SizeReduceRight=1`, `BlocksFolding=false`
+- Stock `5b7d63de5acfc400170e2f8d` (`stock_sa58_ds_arms_para_spr_stock`): `SizeReduceRight=1`, `BlocksFolding=false`
+- Stock `5b099bf25acfc4001637e683` (`stock_sa58_ds_arms_para_folding_buffer_tube_adapter`): `SizeReduceRight=1`, `BlocksFolding=false`
 - Stock `5fb655b748c711690e3a8d5a` (`stock_vector_kriss_non_folding_adapter`): `SizeReduceRight=1`, `BlocksFolding=false`
 
 ## Installation And Updates
