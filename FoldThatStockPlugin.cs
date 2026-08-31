@@ -32,14 +32,21 @@ namespace FoldThatStock
             "5a0ec13bfcdbcb00165aa685", // AKMN
             "59e6152586f77473dc057aa1", // VPO-136
             "59e6687d86f77411d949b251", // VPO-209
-            "628a60ae6b1d481ff772e9c8"  // RD-704
+            "628a60ae6b1d481ff772e9c8", // RD-704
+            "5b0bbe4e5acfc40dc528a72d"  // SA-58
         };
         private static readonly HashSet<string> StockRoutedAnimatedWeaponTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "5fbcc1d9016cce60e8341ab3", // MCX .300 Blackout
             "58948c8e86f77409493f7266", // MPX 9x19
             "65290f395ae2ae97b80fdf2d", // MCX-SPEAR 6.8x51
-            "5926bb2186f7744b1c6c6e60"  // MP5 Navy 3 9x19
+            "5926bb2186f7744b1c6c6e60", // MP5 Navy 3 9x19
+            "5bfea6e90db834001b7347f3"  // M700 7.62x51
+        };
+        private static readonly HashSet<string> NativeFoldOperationWeaponTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "5fb64bc92b1b027b1f50bcf2", // KRISS Vector Gen.2 .45 ACP
+            "5fc3f2d5900b1d5091531e57"  // KRISS Vector Gen.2 9x19
         };
         private static readonly HashSet<string> CollapseStockDefinitionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -62,6 +69,7 @@ namespace FoldThatStock
             public string WeaponTemplateId = string.Empty;
             public string ContainerPathContains = string.Empty;
             public string StockPathContains;
+            public string VisualTargetPathContains = string.Empty;
             public string[] TargetBoneNamePatterns;
             public bool KeepUnfoldedRotation;
             public bool HasFoldedRotation;
@@ -69,13 +77,14 @@ namespace FoldThatStock
             public bool HasRetractedPosition;
             public Vector3 RetractedPosition;
             public bool CorrectReversedPreview;
+            public float PreviewYawAdjustmentDegrees;
             public string BundleFileName;
             public string BundleSourcePathContains;
             public string BundleOverridePath;
         }
 
-        // Describes one reusable game-animation donor. Runtime-loaded clips and bundles are
-        // kept with the immutable routing data so each family is loaded at most once.
+        // Describes one reusable game-animation donor. Resolved clips are cached so each
+        // family is loaded at most once; fallback bundles are released immediately.
         private sealed class DonorAnimationProfile
         {
             public string Id;
@@ -85,7 +94,6 @@ namespace FoldThatStock
             public string UnfoldClipName;
             public string[] AnimationAssetSuffixes;
             public bool ManipulatesRightArm;
-            public AssetBundle OwnedBundle;
             public AnimationClip FoldClip;
             public AnimationClip UnfoldClip;
             public bool AttemptedLoad;
@@ -216,6 +224,55 @@ namespace FoldThatStock
                 BundleFileName = "stock_ak_magpul_zhukov_s.bundle",
                 BundleSourcePathContains = "assets/content/items/mods/stocks/stock_ak_magpul_zhukov_s.bundle",
                 BundleOverridePath = Path.Combine("FoldThatStock", "stock_ak_magpul_zhukov_s.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "m700_ai_at_aics_chassis",
+                DisplayName = "M700 AI AT AICS polymer chassis",
+                TemplateId = "5d25d0ac8abbc3054f3e61f7",
+                StockPathContains = "stock_m700_ai_at_aics_chasiss",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding" },
+                CorrectReversedPreview = true,
+                BundleFileName = "stock_m700_ai_at_aics_chasiss.bundle",
+                BundleSourcePathContains = "assets/content/items/mods/stocks/stock_m700_ai_at_aics_chasiss.bundle",
+                BundleOverridePath = Path.Combine("FoldThatStock", "stock_m700_ai_at_aics_chasiss.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "m700_magpul_pro_700_folding_stock",
+                DisplayName = "M700 Magpul Pro 700 folding stock",
+                TemplateId = "5cdeac42d7f00c000d36ba73",
+                StockPathContains = "stock_m700_magpul_pro_700_folding_stock",
+                VisualTargetPathContains = "stock_m700_magpul_pro_700_chasiss",
+                TargetBoneNamePatterns = new[] { "mod_stock" },
+                CorrectReversedPreview = true,
+                PreviewYawAdjustmentDegrees = 110f
+            },
+            new VisualStockDefinition
+            {
+                Id = "sa58_brs_stock",
+                DisplayName = "DS Arms SA-58 BRS stock",
+                TemplateId = "5b7d64555acfc4001876c8e2",
+                StockPathContains = "stock_sa58_ds_arms_para_brs",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding" },
+                HasFoldedRotation = true,
+                FoldedRotation = DefaultRightFoldedRotation,
+                CorrectReversedPreview = true,
+                BundleFileName = "stock_sa58_ds_arms_para_brs.bundle",
+                BundleSourcePathContains = "assets/content/items/mods/stocks/stock_sa58_ds_arms_para_brs.bundle",
+                BundleOverridePath = Path.Combine("FoldThatStock", "stock_sa58_ds_arms_para_brs.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "vector_kriss_non_folding_adapter",
+                DisplayName = "KRISS Vector non-folding stock adapter",
+                TemplateId = "5fb655b748c711690e3a8d5a",
+                StockPathContains = "stock_vector_kriss_non_folding_adapter",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding" },
+                CorrectReversedPreview = true,
+                BundleFileName = "stock_vector_kriss_non_folding_adapter.bundle",
+                BundleSourcePathContains = "assets/content/items/mods/stocks/stock_vector_kriss_non_folding_adapter.bundle",
+                BundleOverridePath = Path.Combine("FoldThatStock", "stock_vector_kriss_non_folding_adapter.bundle")
             }
         };
 
@@ -269,7 +326,6 @@ namespace FoldThatStock
             },
             ManipulatesRightArm = false
         };
-
         private Harmony _harmony;
         private bool _isShuttingDown;
 
@@ -296,9 +352,9 @@ namespace FoldThatStock
                 _harmony = null;
             }
 
-            UnloadDonorProfile(_umpDonor);
-            UnloadDonorProfile(_mp5Donor);
-            UnloadDonorProfile(_aks74uDonor);
+            ClearDonorProfile(_umpDonor);
+            ClearDonorProfile(_mp5Donor);
+            ClearDonorProfile(_aks74uDonor);
             _animatedFoldOperations.Clear();
             _animatedFoldables.Clear();
 
@@ -308,17 +364,11 @@ namespace FoldThatStock
             }
         }
 
-        private static void UnloadDonorProfile(DonorAnimationProfile profile)
+        private static void ClearDonorProfile(DonorAnimationProfile profile)
         {
             if (profile == null)
             {
                 return;
-            }
-
-            if (profile.OwnedBundle != null)
-            {
-                profile.OwnedBundle.Unload(false);
-                profile.OwnedBundle = null;
             }
 
             profile.FoldClip = null;
@@ -327,7 +377,10 @@ namespace FoldThatStock
 
         internal void TryAttachVisualController(Item item, GameObject itemView)
         {
-            if (item == null || itemView == null || !ContainsSupportedVisualTarget(itemView.transform))
+            if (item == null
+                || itemView == null
+                || UsesNativeFoldOperation(item)
+                || !ContainsSupportedVisualTarget(itemView.transform))
             {
                 return;
             }
@@ -405,7 +458,11 @@ namespace FoldThatStock
                 originalRotation = Quaternion.identity;
             }
 
-            previewPivot.Icon.rotation = FoldingStockPreviewRotationCorrection * originalRotation;
+            Quaternion previewCorrection = Quaternion.Euler(
+                0f,
+                definition.PreviewYawAdjustmentDegrees,
+                0f) * FoldingStockPreviewRotationCorrection;
+            previewPivot.Icon.rotation = previewCorrection * originalRotation;
             itemView.AddComponent<FoldThatStockPreviewPivotRepair>();
 
             if (_loggedPreviewRepairs.Add(definition.Id))
@@ -462,11 +519,17 @@ namespace FoldThatStock
             path = overridePath;
         }
 
-        // Entry point from the fold-operation patch. Eligible AKs start the donor overlay;
-        // other supported custom stocks retain the original instant-completion fallback.
+        // Entry point from the fold-operation patch. Supported weapons with a working native
+        // fold operation keep it; donor-routed weapons use the overlay; remaining custom stocks
+        // retain the original instant-completion fallback.
         internal void CompleteFoldOperationIfSupported(object operationState, FoldOperation foldOperation)
         {
             if (operationState == null || !IsSupportedFoldOperation(foldOperation))
+            {
+                return;
+            }
+
+            if (UsesNativeFoldOperation(foldOperation))
             {
                 return;
             }
@@ -477,6 +540,29 @@ namespace FoldThatStock
             }
 
             InvokeFoldOperationCompletion(operationState);
+        }
+
+        private static bool UsesNativeFoldOperation(FoldOperation foldOperation)
+        {
+            return UsesNativeFoldOperation(foldOperation?.Foldable?.Item);
+        }
+
+        private static bool UsesNativeFoldOperation(Item item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                Item rootItem = item.GetRootItem() ?? item;
+                return NativeFoldOperationWeaponTemplateIds.Contains(GetTemplateId(rootItem));
+            }
+            catch
+            {
+                return NativeFoldOperationWeaponTemplateIds.Contains(GetTemplateId(item));
+            }
         }
 
         internal bool IsFoldOperationCurrent(object operationState, FoldOperation foldOperation)
@@ -704,7 +790,8 @@ namespace FoldThatStock
         }
 
         // Prefer clips Unity has already loaded. Loading the donor's client bundle ourselves
-        // is the fallback when that weapon has not otherwise appeared during the session.
+        // is the fallback when that weapon has not otherwise appeared during the session. The
+        // fallback bundle is released after extracting the clips so EFT remains its sole owner.
         private void LoadDonorClips(DonorAnimationProfile profile)
         {
             try
@@ -739,16 +826,23 @@ namespace FoldThatStock
                     return;
                 }
 
-                profile.OwnedBundle = AssetBundle.LoadFromFile(bundlePath);
-                if (profile.OwnedBundle == null)
+                AssetBundle donorBundle = AssetBundle.LoadFromFile(bundlePath);
+                if (donorBundle == null)
                 {
                     LogAnimationFailureOnce(profile.Id + "-client-bundle-load", $"Unity could not load the donor client asset bundle: {bundlePath}");
                     return;
                 }
 
-                if (TryLoadDonorClipsFromBundle(profile, profile.OwnedBundle))
+                try
                 {
-                    Logger.LogInfo($"Loaded {profile.DisplayName} clips from {bundlePath}");
+                    if (TryLoadDonorClipsFromBundle(profile, donorBundle))
+                    {
+                        Logger.LogInfo($"Loaded {profile.DisplayName} clips from {bundlePath} and released the donor bundle.");
+                    }
+                }
+                finally
+                {
+                    donorBundle.Unload(false);
                 }
             }
             catch (Exception exception)
@@ -944,8 +1038,8 @@ namespace FoldThatStock
             }
         }
 
-        // Retarget only configured weapon roots. AK-family roots always keep the working UMP
-        // profile; SIG/MP5 roots route by the actual supported stock found in the item tree.
+        // Retarget only configured weapon roots. AK-family roots keep the working UMP profile;
+        // SIG/MP5/M700 roots route by the actual supported stock found in the item tree.
         private bool TryResolveDonorProfile(
             FoldOperation foldOperation,
             out DonorAnimationProfile profile,
@@ -1102,7 +1196,10 @@ namespace FoldThatStock
                     continue;
                 }
 
-                if (!PathContains(path, item.ContainerPathContains) || !PathContains(path, item.StockPathContains))
+                string targetPathContains = string.IsNullOrWhiteSpace(item.VisualTargetPathContains)
+                    ? item.StockPathContains
+                    : item.VisualTargetPathContains;
+                if (!PathContains(path, item.ContainerPathContains) || !PathContains(path, targetPathContains))
                 {
                     continue;
                 }
@@ -1643,8 +1740,8 @@ namespace FoldThatStock
             }
         }
 
-        // Intercepts the operation after EFT has created it, then either starts the donor
-        // overlay or uses the established instant fallback for supported custom stocks.
+        // Intercepts the operation after EFT has created it, then preserves native completion,
+        // starts the selected donor overlay, or uses the instant fallback as appropriate.
         [HarmonyPatch]
         private static class FoldOperationStartPatch
         {

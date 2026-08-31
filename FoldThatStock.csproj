@@ -17,6 +17,7 @@
     <ManagedPath>$(SPTRoot)\EscapeFromTarkov_Data\Managed</ManagedPath>
     <LocalPluginOutputDir>plugin\FoldThatStock\</LocalPluginOutputDir>
     <SPTPluginOutputDir>$(SPTRoot)\BepInEx\plugins\FoldThatStock</SPTPluginOutputDir>
+    <DeployBundlesToSPT Condition="'$(DeployBundlesToSPT)' == ''">false</DeployBundlesToSPT>
   </PropertyGroup>
 
   <ItemGroup>
@@ -91,6 +92,7 @@
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).dll" />
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).pdb" Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).deps.json" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).deps.json" Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
-    <Copy SourceFiles="@(StockBundles)" DestinationFolder="$(SPTPluginOutputDir)" Condition="'@(StockBundles)' != ''" />
+    <!-- Live bundle deployment is opt-in so DLL rebuilds cannot overwrite newer Unity exports. -->
+    <Copy SourceFiles="@(StockBundles)" DestinationFolder="$(SPTPluginOutputDir)" Condition="'$(DeployBundlesToSPT)' == 'true' And '@(StockBundles)' != ''" />
   </Target>
 </Project>

@@ -24,7 +24,7 @@ public record ModMetadata : IModMetadata
     public List<string>? Incompatibilities { get; init; }
     public Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
     public string? Url { get; init; }
-    public string License { get; init; } = "MIT";
+    public string License { get; init; } = "GNU GPLv3";
 }
 
 public sealed class FoldThatStockServerConfig
@@ -41,6 +41,7 @@ public sealed class WeaponFoldPatch
     public string WeaponTemplateId { get; set; } = "";
     public bool? Foldable { get; set; } = true;
     public string? FoldedSlot { get; set; } = "mod_stock";
+    public int? SizeReduceRight { get; set; }
     public List<StockTemplatePatch> StockPatches { get; set; } = new();
 }
 
@@ -50,6 +51,7 @@ public sealed class StockTemplatePatch
     public string Name { get; set; } = "";
     public string StockTemplateId { get; set; } = "";
     public int? SizeReduceRight { get; set; } = 1;
+    public bool? BlocksFolding { get; set; }
 }
 
 [Injectable(TypePriority = OnLoadOrder.PostLoad + 1)]
@@ -73,6 +75,11 @@ public class FoldThatStockServerPatch(
         "5649b2314bdc2d79388b4576",
         "5b0e794b5acfc47a877359b2",
         "5926d40686f7740f152b6b7e",
+        "5d25d0ac8abbc3054f3e61f7",
+        "5cdeac22d7f00c000f26168f", // M700 Pro 700 chassis hosting the folding stock
+        "5cdeac42d7f00c000d36ba73",
+        "5b7d64555acfc4001876c8e2",
+        "5fb655b748c711690e3a8d5a",
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -144,6 +151,11 @@ public class FoldThatStockServerPatch(
             changed |= TrySetTemplateProperty(template.Properties, "FoldedSlot", patch.FoldedSlot, patch.Name, patch.WeaponTemplateId);
         }
 
+        if (patch.SizeReduceRight.HasValue)
+        {
+            changed |= TrySetTemplateProperty(template.Properties, "SizeReduceRight", patch.SizeReduceRight.Value, patch.Name, patch.WeaponTemplateId);
+        }
+
         return changed;
     }
 
@@ -164,6 +176,11 @@ public class FoldThatStockServerPatch(
         if (patch.SizeReduceRight.HasValue)
         {
             changed |= TrySetTemplateProperty(template.Properties, "SizeReduceRight", patch.SizeReduceRight.Value, patch.Name, patch.StockTemplateId);
+        }
+
+        if (patch.BlocksFolding.HasValue)
+        {
+            changed |= TrySetTemplateProperty(template.Properties, "BlocksFolding", patch.BlocksFolding.Value, patch.Name, patch.StockTemplateId);
         }
 
         return changed;
@@ -437,6 +454,32 @@ public class FoldThatStockServerPatch(
                     StockTemplateId = "5926d40686f7740f152b6b7e",
                     SizeReduceRight = 1,
                 },
+                new()
+                {
+                    Name = "M700 AI AT AICS polymer chassis",
+                    StockTemplateId = "5d25d0ac8abbc3054f3e61f7",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
+                    Name = "M700 Magpul Pro 700 folding stock",
+                    StockTemplateId = "5cdeac42d7f00c000d36ba73",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
+                    Name = "DS Arms SA-58 BRS stock",
+                    StockTemplateId = "5b7d64555acfc4001876c8e2",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "KRISS Vector non-folding stock adapter",
+                    StockTemplateId = "5fb655b748c711690e3a8d5a",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
             },
             WeaponPatches = new List<WeaponFoldPatch>
             {
@@ -509,11 +552,30 @@ public class FoldThatStockServerPatch(
                     WeaponTemplateId = "628a60ae6b1d481ff772e9c8",
                     Foldable = true,
                     FoldedSlot = "mod_stock_000",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
+                    Name = "DS Arms SA-58 7.62x51 assault rifle",
+                    WeaponTemplateId = "5b0bbe4e5acfc40dc528a72d",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock",
+                    SizeReduceRight = 1,
                 },
                 new()
                 {
                     Name = "HK MP5 Navy 3 9x19 submachine gun",
                     WeaponTemplateId = "5926bb2186f7744b1c6c6e60",
+                    Foldable = true,
+                    // The MP5 stock slot belongs to its nested receiver, not the weapon root.
+                    // Keep the root slot empty and apply the one-cell reduction directly.
+                    FoldedSlot = "",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
+                    Name = "Remington Model 700 7.62x51 bolt-action sniper rifle",
+                    WeaponTemplateId = "5bfea6e90db834001b7347f3",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
@@ -550,9 +612,25 @@ public class FoldThatStockServerPatch(
         var defaults = CreateDefaultConfig();
         foreach (var defaultWeaponPatch in defaults.WeaponPatches)
         {
-            if (config.WeaponPatches.Any(existing => existing != null
-                && string.Equals(existing.WeaponTemplateId, defaultWeaponPatch.WeaponTemplateId, StringComparison.OrdinalIgnoreCase)))
+            var existingWeaponPatch = config.WeaponPatches.FirstOrDefault(existing => existing != null
+                && string.Equals(existing.WeaponTemplateId, defaultWeaponPatch.WeaponTemplateId, StringComparison.OrdinalIgnoreCase));
+            if (existingWeaponPatch != null)
             {
+                if (!existingWeaponPatch.SizeReduceRight.HasValue && defaultWeaponPatch.SizeReduceRight.HasValue)
+                {
+                    existingWeaponPatch.SizeReduceRight = defaultWeaponPatch.SizeReduceRight;
+                    changed = true;
+                }
+
+                // Migrate the old MP5 default, which pointed at a receiver-owned slot that
+                // FoldableComponent cannot resolve from the weapon root.
+                if (string.Equals(defaultWeaponPatch.WeaponTemplateId, "5926bb2186f7744b1c6c6e60", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existingWeaponPatch.FoldedSlot, "mod_stock", StringComparison.OrdinalIgnoreCase))
+                {
+                    existingWeaponPatch.FoldedSlot = "";
+                    changed = true;
+                }
+
                 continue;
             }
 

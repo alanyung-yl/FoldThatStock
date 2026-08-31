@@ -1,8 +1,8 @@
 # FoldThatStock
 
-Fresh implementation of the client plugin and SPT server patcher.
+FoldThatStock adds functional folding and collapsing behavior to weapons and stocks that do not support it in vanilla SPT.
 
-The server patch enables foldable behavior on configured vanilla templates, and the client plugin handles the missing visual animation by binding a per-item stock visual controller to supported stock views.
+Version 2.0.0 introduces script-driven first-person animations for SPT 4.1.3. The mod retargets compatible animations from existing EFT weapons and synchronizes the weapon, stock, arms, wrists, hands, and fingers during folding.
 
 [![](https://img.shields.io/github/v/release/alanyung-yl/FoldThatStock?display_name=tag&sort=semver)](https://github.com/alanyung-yl/FoldThatStock/releases/latest)
 [![](https://img.shields.io/github/downloads/alanyung-yl/FoldThatStock/total)](https://github.com/alanyung-yl/FoldThatStock/releases)
@@ -10,13 +10,13 @@ The server patch enables foldable behavior on configured vanilla templates, and 
 ## Current Behavior
 
 - Server-side config is generated from `CreateDefaultConfig()` when missing.
-- The documented release scope currently covers MCX, MPX, MCX-SPEAR, MP5 Navy 3, supported AK-platform, and the supported stock visual/size patches listed below.
+- The documented release scope currently covers MCX, MPX, MCX-SPEAR, MP5, M700, SA-58, KRISS Vector, supported AK-platform, and the supported stock visual/size patches listed below.
 - The client redirects supported stock bundles when matching override bundles exist.
 - The client keeps `VisualStockDefinition[] BuiltInVisualStockDefinitions` as the stock/source of truth for supported visual targets.
-- The SIG thin stock folded quaternion is preserved as `X=0, Y=0.7071068, Z=0.7071068, W=0`.
 - Visual folded state is scoped to the item view that owns the stock, not a global mod state.
 - Fold operation fallback is only applied for supported FoldThatStock items.
-- In-raid fold operations use stock-selected donor animation: MP5 collapse for the MP5 A3 stock, SIG Collapsing/Telescoping Stock, and MPX brace; AKS-74U left-fold for other supported SIG stocks; and UMP right-fold for supported AK-platform weapons.
+- In-raid fold operations use stock-selected donor animation: MP5 collapse for the MP5 A3 stock, SIG Collapsing/Telescoping Stock, and MPX brace; AKS-74U left-fold for other supported SIG stocks and supported M700 stocks; and UMP right-fold for supported AK-platform weapons and the SA-58.
+- KRISS Vector weapons retain EFT's native fold operation while using the replacement adapter visual.
 - Repeated in-raid fold input is ignored until the active donor animation and its final pose handoff have finished.
 
 ## Supported Stocks
@@ -31,6 +31,10 @@ The server patch enables foldable behavior on configured vanilla templates, and 
 - AKM/AK-74 ME4 buffer tube adapter
 - AKM/AK-74 Magpul Zhukov-S stock
 - HK MP5 A3 old model stock
+- M700 AI AT AICS polymer chassis
+- M700 Magpul Pro 700 folding stock
+- DS Arms SA-58 BRS stock
+- KRISS Vector non-folding stock adapter
 
 ## Supported Weapons
 
@@ -45,6 +49,10 @@ The server patch enables foldable behavior on configured vanilla templates, and 
 - Molot Arms VPO-209 .366 TKM carbine
 - Rifle Dynamics RD-704 7.62x39 assault rifle
 - HK MP5 Navy 3 9x19 submachine gun
+- Remington Model 700 7.62x51 bolt-action sniper rifle
+- DS Arms SA-58 7.62x51 assault rifle
+- TDI KRISS Vector Gen.2 .45 ACP submachine gun
+- TDI KRISS Vector Gen.2 9x19 submachine gun
 
 ## Default Server Template Patches
 
@@ -57,8 +65,10 @@ The server patch enables foldable behavior on configured vanilla templates, and 
 - Weapon `5a0ec13bfcdbcb00165aa685` (`weapon_akmn_762x39`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Weapon `59e6152586f77473dc057aa1` (`weapon_vpo136_762x39`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Weapon `59e6687d86f77411d949b251` (`weapon_vpo209_366tkm`): `Foldable=true`, `FoldedSlot=mod_stock`
-- Weapon `628a60ae6b1d481ff772e9c8` (`weapon_rd704_762x39`): `Foldable=true`, `FoldedSlot=mod_stock_000`
-- Weapon `5926bb2186f7744b1c6c6e60` (`weapon_hk_mp5_navy3_9x19`): `Foldable=true`, `FoldedSlot=mod_stock`
+- Weapon `628a60ae6b1d481ff772e9c8` (`weapon_rd704_762x39`): `Foldable=true`, `FoldedSlot=mod_stock_000`, `SizeReduceRight=1`
+- Weapon `5b0bbe4e5acfc40dc528a72d` (`weapon_dsa_sa58_762x51`): `Foldable=true`, `FoldedSlot=mod_stock`, `SizeReduceRight=1`
+- Weapon `5926bb2186f7744b1c6c6e60` (`weapon_hk_mp5_navy3_9x19`): `Foldable=true`, `FoldedSlot=""`, `SizeReduceRight=1`
+- Weapon `5bfea6e90db834001b7347f3` (`weapon_remington_m700_762x51`): `Foldable=true`, `FoldedSlot=mod_stock`
 - Stock `5fbcc437d724d907e2077d5c` (`stock_all_sig_thin_folding_stock`): `SizeReduceRight=1`
 - Stock `58ac1bf086f77420ed183f9f` (`stock_all_sig_folding_knuckle`): `SizeReduceRight=1`
 - Stock `5c5db6f82e2216003a0fe914` (`stock_mpx_pmm_ulss`): `SizeReduceRight=1`
@@ -69,6 +79,10 @@ The server patch enables foldable behavior on configured vanilla templates, and 
 - Stock `5649b2314bdc2d79388b4576` (`stock_ak_utg_sfs_adapter`): `SizeReduceRight=1`
 - Stock `5b0e794b5acfc47a877359b2` (`stock_ak_magpul_zhukov_s`): `SizeReduceRight=1`
 - Stock `5926d40686f7740f152b6b7e` (`stock_mp5_hk_a3_std`): `SizeReduceRight=1`
+- Stock `5d25d0ac8abbc3054f3e61f7` (`stock_m700_ai_at_aics_chasiss`): `SizeReduceRight=1`
+- Stock `5cdeac42d7f00c000d36ba73` (`stock_m700_magpul_pro_700_folding_stock`): `SizeReduceRight=1`
+- Stock `5b7d64555acfc4001876c8e2` (`stock_sa58_ds_arms_para_brs`): `SizeReduceRight=1`, `BlocksFolding=false`
+- Stock `5fb655b748c711690e3a8d5a` (`stock_vector_kriss_non_folding_adapter`): `SizeReduceRight=1`, `BlocksFolding=false`
 
 ## Installation And Updates
 
@@ -90,16 +104,20 @@ This cleared the issue in one observed test session. It is not yet known whether
 
 ## Notes
 
+- Client builds deploy the DLL but preserve live stock bundles by default. Pass `-p:DeployBundlesToSPT=true` only when the repository bundle files are intentionally ready to replace the live copies.
 - If you do not want a supported stock visual override, remove that stock's bundle file from `BepInEx\plugins\FoldThatStock\`.
 - Removing a bundle disables that stock's custom visual override, but it does not remove any server-side weapon or stock patch already enabled
 
 ## Current Limitations
 
 - Donor hand contact is retargeted at runtime, so exact palm-to-stock contact can vary with stock geometry.
-- The remodeled MP5 A3 retracts 0.1085 local units from its unfolded position along local +Z.
 - Some vanilla stocks that should be foldable are still yet to be supported
 - Support is currently limited to the stock bundles included in this release
 
 ## Roadmap
 
 - Continue expanding stock coverage and animation/visual polish.
+
+## License
+
+FoldThatStock is licensed under the [GNU General Public License v3.0](LICENSE).
