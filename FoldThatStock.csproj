@@ -7,7 +7,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblyName>FoldThatStock</AssemblyName>
     <RootNamespace>FoldThatStock</RootNamespace>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <OutputPath>bin\$(Configuration)\</OutputPath>
@@ -17,6 +17,7 @@
     <ManagedPath>$(SPTRoot)\EscapeFromTarkov_Data\Managed</ManagedPath>
     <LocalPluginOutputDir>plugin\FoldThatStock\</LocalPluginOutputDir>
     <SPTPluginOutputDir>$(SPTRoot)\BepInEx\plugins\FoldThatStock</SPTPluginOutputDir>
+    <DeployBundlesToSPT Condition="'$(DeployBundlesToSPT)' == ''">false</DeployBundlesToSPT>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,6 +35,10 @@
     </Reference>
     <Reference Include="0Harmony">
       <HintPath>$(BepInExCorePath)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(ManagedPath)\Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine">
@@ -61,7 +66,7 @@
   <ItemGroup>
     <Compile Include="FoldThatStockPlugin.cs" />
     <Compile Include="FoldThatStockAnimationOverlay.cs" />
-    <StockBundles Include="bundle\*.bundle" />
+    <StockBundles Include="Assets\*.bundle" />
   </ItemGroup>
 
   <Target Name="ValidateSPTRoot" BeforeTargets="ResolveReferences">
@@ -69,6 +74,7 @@
     <Error Condition="!Exists('$(ManagedPath)\ItemComponent.Types.dll')" Text="ItemComponent.Types.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(BepInExCorePath)\BepInEx.dll')" Text="BepInEx.dll not found. Build with -p:SPTRoot=&quot;C:\SPT&quot; or point SPTRoot at your SPT install." />
     <Error Condition="!Exists('$(BepInExCorePath)\0Harmony.dll')" Text="0Harmony.dll not found under $(BepInExCorePath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(ManagedPath)\Newtonsoft.Json.dll')" Text="Newtonsoft.Json.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.dll')" Text="UnityEngine.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.CoreModule.dll')" Text="UnityEngine.CoreModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.AssetBundleModule.dll')" Text="UnityEngine.AssetBundleModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
@@ -91,6 +97,7 @@
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).dll" />
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).pdb" Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).deps.json" DestinationFiles="$(SPTPluginOutputDir)\$(AssemblyName).deps.json" Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
-    <Copy SourceFiles="@(StockBundles)" DestinationFolder="$(SPTPluginOutputDir)" Condition="'@(StockBundles)' != ''" />
+    <!-- Live bundle deployment is opt-in so DLL rebuilds cannot overwrite newer Unity exports. -->
+    <Copy SourceFiles="@(StockBundles)" DestinationFolder="$(SPTPluginOutputDir)" Condition="'$(DeployBundlesToSPT)' == 'true' And '@(StockBundles)' != ''" />
   </Target>
 </Project>
