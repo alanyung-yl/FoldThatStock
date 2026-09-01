@@ -18,7 +18,7 @@ public record ModMetadata : IModMetadata
     public string Name { get; init; } = "FoldThatStock";
     public string Author { get; init; } = "alanyung-yl";
     public List<string>? Contributors { get; init; }
-    public SemanticVersioning.Version Version { get; init; } = new("2.0.0");
+    public SemanticVersioning.Version Version { get; init; } = new("2.1.0");
     public SemanticVersioning.Range SptVersion { get; init; } = new("~4.1.0");
     public bool HasPrepatcher { get; init; }
     public List<string>? Incompatibilities { get; init; }
@@ -30,8 +30,15 @@ public record ModMetadata : IModMetadata
 public sealed class FoldThatStockServerConfig
 {
     public bool Enabled { get; set; } = true;
+    public UziAdapterFoldSuppressionConfig? UziAdapterFoldSuppression { get; set; }
     public List<WeaponFoldPatch> WeaponPatches { get; set; } = new();
     public List<StockTemplatePatch> StockPatches { get; set; } = new();
+}
+
+public sealed class UziAdapterFoldSuppressionConfig
+{
+    public bool SuppressLeftFoldingStocks { get; set; } = true;
+    public bool SuppressCollapsingStocks { get; set; } = true;
 }
 
 public sealed class WeaponFoldPatch
@@ -42,6 +49,7 @@ public sealed class WeaponFoldPatch
     public bool? Foldable { get; set; } = true;
     public string? FoldedSlot { get; set; } = "mod_stock";
     public int? SizeReduceRight { get; set; }
+    public List<string> AdditionalCompatibleStockTemplateIds { get; set; } = new();
     public List<StockTemplatePatch> StockPatches { get; set; } = new();
 }
 
@@ -63,6 +71,14 @@ public class FoldThatStockServerPatch(
     private const string LogPrefix = "FoldThatStock:";
     private const string DefaultFoldedSlot = "mod_stock";
     private const string Mp5WeaponTemplateId = "5926bb2186f7744b1c6c6e60";
+    private const string AxmcWeaponTemplateId = "627e14b21713922ded6f2c15";
+    private const string UziProA3BraceTemplateId = "6686717ffb75ee4a5e02eb19";
+
+    private static readonly HashSet<string> WeaponLevelSizeReductionTemplateIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        Mp5WeaponTemplateId,
+        AxmcWeaponTemplateId,
+    };
 
     private static readonly string[] BuiltInSupportedStockTemplateIds =
     {
@@ -84,6 +100,14 @@ public class FoldThatStockServerPatch(
         "5b7d63de5acfc400170e2f8d",
         "5b099bf25acfc4001637e683",
         "5fb655b748c711690e3a8d5a",
+        "5b04473a5acfc40018632f70",
+        "5d0236dad7ad1a0940739d29",
+        "653ed132896b99b40a0292e6",
+        "6686717ffb75ee4a5e02eb19",
+        "668032ba74b8f2050c0b917d",
+        "66867310f3734a938b077f79",
+        "668672b8c99550c6fd0f0b29",
+        "669cf78806768ff39504fc1c",
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -155,12 +179,74 @@ public class FoldThatStockServerPatch(
             changed |= TrySetTemplateProperty(template.Properties, "FoldedSlot", patch.FoldedSlot, patch.Name, patch.WeaponTemplateId);
         }
 
-        // MP5 is the only weapon-level sizing exception: its stock slot belongs to the
-        // nested receiver, so a stock-only reduction cannot resize the weapon root.
+        // MP5's stock slot is receiver-owned and AXMC's stock is integral to the weapon.
+        // Both therefore need their folded inventory reduction on the weapon root.
         if (patch.SizeReduceRight.HasValue
-            && string.Equals(patch.WeaponTemplateId, Mp5WeaponTemplateId, StringComparison.OrdinalIgnoreCase))
+            && WeaponLevelSizeReductionTemplateIds.Contains(patch.WeaponTemplateId))
         {
             changed |= TrySetTemplateProperty(template.Properties, "SizeReduceRight", patch.SizeReduceRight.Value, patch.Name, patch.WeaponTemplateId);
+        }
+
+        changed |= AddCompatibleStocksToFoldedSlot(template, patch);
+
+        return changed;
+    }
+
+    private bool AddCompatibleStocksToFoldedSlot(TemplateItem weaponTemplate, WeaponFoldPatch patch)
+    {
+        if (weaponTemplate.Properties == null
+            || patch.AdditionalCompatibleStockTemplateIds == null
+            || patch.AdditionalCompatibleStockTemplateIds.Count == 0)
+        {
+            return false;
+        }
+
+        var foldedSlot = GetConfiguredFoldedSlot(weaponTemplate, patch);
+        var slot = weaponTemplate.Properties.Slots?.FirstOrDefault(candidate => string.Equals(
+            candidate.Name,
+            foldedSlot,
+            StringComparison.OrdinalIgnoreCase));
+        if (slot == null)
+        {
+            logger.Warning(
+                $"{LogPrefix} Folded slot `{foldedSlot}` was not found on " +
+                $"`{GetPatchLabel(patch.Name, patch.WeaponTemplateId)}` while adding stock compatibility."
+            );
+            return false;
+        }
+
+        var filters = slot.Properties?.Filters;
+        if (filters == null)
+        {
+            logger.Warning(
+                $"{LogPrefix} Folded slot `{foldedSlot}` has no compatibility filter on " +
+                $"`{GetPatchLabel(patch.Name, patch.WeaponTemplateId)}`."
+            );
+            return false;
+        }
+
+        var changed = false;
+        foreach (var stockTemplateId in patch.AdditionalCompatibleStockTemplateIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!TryParseMongoId(stockTemplateId, out var parsedId))
+            {
+                logger.Warning(
+                    $"{LogPrefix} Invalid compatible stock template id `{stockTemplateId}` on " +
+                    $"`{GetPatchLabel(patch.Name, patch.WeaponTemplateId)}`."
+                );
+                continue;
+            }
+
+            foreach (var filter in filters)
+            {
+                if (filter.Filter != null)
+                {
+                    changed |= filter.Filter.Add(parsedId);
+                }
+            }
         }
 
         return changed;
@@ -382,7 +468,7 @@ public class FoldThatStockServerPatch(
             if (NormalizeConfig(config))
             {
                 SaveConfig(configPath, config);
-                logger.Info($"{LogPrefix} Added newly supported built-in items to `{configPath}`.");
+                logger.Info($"{LogPrefix} Updated `{configPath}` with newly supported defaults.");
             }
 
             return config;
@@ -399,6 +485,11 @@ public class FoldThatStockServerPatch(
         return new FoldThatStockServerConfig
         {
             Enabled = true,
+            UziAdapterFoldSuppression = new UziAdapterFoldSuppressionConfig
+            {
+                SuppressLeftFoldingStocks = true,
+                SuppressCollapsingStocks = true,
+            },
             StockPatches = new List<StockTemplatePatch>
             {
                 new()
@@ -445,6 +536,41 @@ public class FoldThatStockServerPatch(
                 },
                 new()
                 {
+                    Name = "UZI PRO A3 Tactical Modular Folding Brace",
+                    StockTemplateId = UziProA3BraceTemplateId,
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "UZI PRO Stabilizing Brace",
+                    StockTemplateId = "668032ba74b8f2050c0b917d",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "UZI PRO SBR buttstock",
+                    StockTemplateId = "66867310f3734a938b077f79",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "UZI PRO A3 Tactical Rear Stock Adapter",
+                    StockTemplateId = "668672b8c99550c6fd0f0b29",
+                    SizeReduceRight = null,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "UZI PRO CSM stock adapter",
+                    StockTemplateId = "669cf78806768ff39504fc1c",
+                    SizeReduceRight = null,
+                    BlocksFolding = false,
+                },
+                new()
+                {
                     Name = "AKM/AK-74 ME4 buffer tube adapter",
                     StockTemplateId = "5649b2314bdc2d79388b4576",
                     SizeReduceRight = 1,
@@ -454,6 +580,20 @@ public class FoldThatStockServerPatch(
                     Name = "AKM/AK-74 Magpul Zhukov-S stock",
                     StockTemplateId = "5b0e794b5acfc47a877359b2",
                     SizeReduceRight = 1,
+                },
+                new()
+                {
+                    Name = "FAB Defense UAS AK stock",
+                    StockTemplateId = "5b04473a5acfc40018632f70",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
+                },
+                new()
+                {
+                    Name = "FAB Defense UAS SKS stock",
+                    StockTemplateId = "5d0236dad7ad1a0940739d29",
+                    SizeReduceRight = 1,
+                    BlocksFolding = false,
                 },
                 new()
                 {
@@ -517,6 +657,7 @@ public class FoldThatStockServerPatch(
                     WeaponTemplateId = "5fbcc1d9016cce60e8341ab3",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
+                    AdditionalCompatibleStockTemplateIds = new List<string> { UziProA3BraceTemplateId },
                 },
                 new()
                 {
@@ -524,6 +665,7 @@ public class FoldThatStockServerPatch(
                     WeaponTemplateId = "58948c8e86f77409493f7266",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
+                    AdditionalCompatibleStockTemplateIds = new List<string> { UziProA3BraceTemplateId },
                 },
                 new()
                 {
@@ -531,6 +673,21 @@ public class FoldThatStockServerPatch(
                     WeaponTemplateId = "65290f395ae2ae97b80fdf2d",
                     Foldable = true,
                     FoldedSlot = "mod_stock_000",
+                    AdditionalCompatibleStockTemplateIds = new List<string> { UziProA3BraceTemplateId },
+                },
+                new()
+                {
+                    Name = "IWI UZI PRO pistol 9x19",
+                    WeaponTemplateId = "6680304edadb7aa61d00cef0",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock",
+                },
+                new()
+                {
+                    Name = "IWI UZI PRO SMG 9x19 submachine gun",
+                    WeaponTemplateId = "668e71a8dadf42204c032ce1",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock",
                 },
                 new()
                 {
@@ -583,6 +740,13 @@ public class FoldThatStockServerPatch(
                 },
                 new()
                 {
+                    Name = "Aklys Defense Velociraptor .300 Blackout assault rifle",
+                    WeaponTemplateId = "674d6121c09f69dfb201a888",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock_000",
+                },
+                new()
+                {
                     Name = "DS Arms SA-58 7.62x51 assault rifle",
                     WeaponTemplateId = "5b0bbe4e5acfc40dc528a72d",
                     Foldable = true,
@@ -599,8 +763,31 @@ public class FoldThatStockServerPatch(
                 },
                 new()
                 {
+                    Name = "Accuracy International AXMC .338 LM bolt-action sniper rifle",
+                    WeaponTemplateId = AxmcWeaponTemplateId,
+                    Foldable = true,
+                    // The folding stock is integral to the weapon and has no inventory slot.
+                    FoldedSlot = "",
+                    SizeReduceRight = 1,
+                },
+                new()
+                {
                     Name = "Remington Model 700 7.62x51 bolt-action sniper rifle",
                     WeaponTemplateId = "5bfea6e90db834001b7347f3",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock",
+                },
+                new()
+                {
+                    Name = "Simonov SKS 7.62x39 carbine",
+                    WeaponTemplateId = "574d967124597745970e7c94",
+                    Foldable = true,
+                    FoldedSlot = "mod_stock",
+                },
+                new()
+                {
+                    Name = "Molot Arms Simonov OP-SKS 7.62x39 carbine",
+                    WeaponTemplateId = "587e02ff24597743df3deaeb",
                     Foldable = true,
                     FoldedSlot = "mod_stock",
                 },
@@ -625,8 +812,20 @@ public class FoldThatStockServerPatch(
             changed = true;
         }
 
+        if (config.UziAdapterFoldSuppression == null)
+        {
+            config.UziAdapterFoldSuppression = new UziAdapterFoldSuppressionConfig();
+            changed = true;
+        }
+
         foreach (var weaponPatch in config.WeaponPatches.Where(patch => patch != null))
         {
+            if (weaponPatch.AdditionalCompatibleStockTemplateIds == null)
+            {
+                weaponPatch.AdditionalCompatibleStockTemplateIds = new List<string>();
+                changed = true;
+            }
+
             if (weaponPatch.StockPatches == null)
             {
                 weaponPatch.StockPatches = new List<StockTemplatePatch>();
@@ -634,8 +833,8 @@ public class FoldThatStockServerPatch(
             }
 
             // Remove legacy weapon-level reductions such as the old RD-704 default.
-            // MP5 remains the sole exception because its stock slot is receiver-owned.
-            if (!string.Equals(weaponPatch.WeaponTemplateId, Mp5WeaponTemplateId, StringComparison.OrdinalIgnoreCase)
+            // Only weapons whose folding stock cannot own the reduction keep this value.
+            if (!WeaponLevelSizeReductionTemplateIds.Contains(weaponPatch.WeaponTemplateId)
                 && weaponPatch.SizeReduceRight.HasValue)
             {
                 weaponPatch.SizeReduceRight = null;
@@ -650,6 +849,20 @@ public class FoldThatStockServerPatch(
                 && string.Equals(existing.WeaponTemplateId, defaultWeaponPatch.WeaponTemplateId, StringComparison.OrdinalIgnoreCase));
             if (existingWeaponPatch != null)
             {
+                foreach (var stockTemplateId in defaultWeaponPatch.AdditionalCompatibleStockTemplateIds)
+                {
+                    if (existingWeaponPatch.AdditionalCompatibleStockTemplateIds.Any(existing => string.Equals(
+                        existing,
+                        stockTemplateId,
+                        StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    existingWeaponPatch.AdditionalCompatibleStockTemplateIds.Add(stockTemplateId);
+                    changed = true;
+                }
+
                 if (!existingWeaponPatch.SizeReduceRight.HasValue && defaultWeaponPatch.SizeReduceRight.HasValue)
                 {
                     existingWeaponPatch.SizeReduceRight = defaultWeaponPatch.SizeReduceRight;

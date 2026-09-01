@@ -11,6 +11,7 @@ using EFT.InventoryLogic;
 using EFT.InventoryLogic.Operations;
 using EFT.Visual;
 using HarmonyLib;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace FoldThatStock
@@ -20,11 +21,13 @@ namespace FoldThatStock
     {
         public const string PluginGuid = "com.foldthatstock";
         public const string PluginName = "FoldThatStock";
-        public const string PluginVersion = "2.0.0";
+        public const string PluginVersion = "2.1.0";
+        private const string UziAdapterStockSlotId = "mod_stock_000";
+        private const string Sa58TemplateId = "5b0bbe4e5acfc40dc528a72d";
 
         private static readonly Vector3 SigMpxMcxRetractedPosition = new Vector3(0f, 0.0102f, 0.092f);
         private static readonly Vector3 Mp5A3RetractedPosition = new Vector3(0.0001f, 0.0222f, -0.0678f);
-        private static readonly HashSet<string> UmpAnimatedAkTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> UziAnimatedAkTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "5644bd2b4bdc2d3b4c8b4572", // AK-74N
             "5bf3e03b0db834001d2c4a9c", // AK-74
@@ -32,8 +35,13 @@ namespace FoldThatStock
             "5a0ec13bfcdbcb00165aa685", // AKMN
             "59e6152586f77473dc057aa1", // VPO-136
             "59e6687d86f77411d949b251", // VPO-209
-            "628a60ae6b1d481ff772e9c8", // RD-704
-            "5b0bbe4e5acfc40dc528a72d"  // SA-58
+            "674d6121c09f69dfb201a888", // Aklys Defense Velociraptor
+            "628a60ae6b1d481ff772e9c8"  // RD-704
+        };
+        private static readonly HashSet<string> UasSksStockDefinitionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "uas_sks_stock",
+            "uas_shared_folding_stock"
         };
         private static readonly HashSet<string> StockRoutedAnimatedWeaponTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -46,7 +54,32 @@ namespace FoldThatStock
         private static readonly HashSet<string> NativeFoldOperationWeaponTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "5fb64bc92b1b027b1f50bcf2", // KRISS Vector Gen.2 .45 ACP
-            "5fc3f2d5900b1d5091531e57"  // KRISS Vector Gen.2 9x19
+            "5fc3f2d5900b1d5091531e57", // KRISS Vector Gen.2 9x19
+            "6680304edadb7aa61d00cef0", // UZI PRO pistol 9x19
+            "668e71a8dadf42204c032ce1"  // UZI PRO SMG 9x19
+        };
+        private static readonly HashSet<string> UziProWeaponTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "6680304edadb7aa61d00cef0", // UZI PRO pistol 9x19
+            "668e71a8dadf42204c032ce1"  // UZI PRO SMG 9x19
+        };
+        private static readonly HashSet<string> UziStockAdapterTemplateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "668672b8c99550c6fd0f0b29", // UZI PRO A3 Tactical Rear Stock Adapter
+            "669cf78806768ff39504fc1c"  // UZI PRO CSM stock adapter
+        };
+        private static readonly HashSet<string> UziAdapterLeftFoldingStockDefinitionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "sig_thin_folding_stock",
+            "sig_folding_knuckle",
+            "mpx_pmm_ulss_stock",
+            "sig_telescoping_stock",
+            "sig_stock_locking_hinge_assembly"
+        };
+        private static readonly HashSet<string> UziAdapterCollapsingStockDefinitionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "sig_mpx_mcx_early_type_stock",
+            "sig_mpx_brace"
         };
         private static readonly HashSet<string> CollapseStockDefinitionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -60,7 +93,7 @@ namespace FoldThatStock
         internal static readonly Quaternion DefaultFoldedRotation = new Quaternion(0f, 0.7071068f, 0.7071068f, 0f);
         internal static readonly Quaternion DefaultRightFoldedRotation = new Quaternion(0f, -0.7071068f, -0.7071068f, 0f);
         private static readonly Quaternion Sa58BrsFoldedRotation = new Quaternion(-0.02192926f, -0.83048016f, 0.03819934f, 0.55530408f);
-        private static readonly Quaternion Sa58BufferTubeAdapterFoldedRotation = new Quaternion(0f, 0f, -0.99999999f, 0f);
+        private static readonly Quaternion PositiveZFoldedRotation = Quaternion.Euler(0f, 0f, 180f);
         private static readonly Quaternion FoldingStockPreviewRotationCorrection = Quaternion.Euler(0f, -90f, 0f);
 
         internal sealed class VisualStockDefinition
@@ -99,6 +132,21 @@ namespace FoldThatStock
             public AnimationClip FoldClip;
             public AnimationClip UnfoldClip;
             public bool AttemptedLoad;
+        }
+
+        private sealed class SharedServerConfig
+        {
+            [JsonProperty("UziAdapterFoldSuppression")]
+            public UziAdapterFoldSuppressionSettings UziAdapterFoldSuppression { get; set; }
+        }
+
+        private sealed class UziAdapterFoldSuppressionSettings
+        {
+            [JsonProperty("SuppressLeftFoldingStocks")]
+            public bool? SuppressLeftFoldingStocks { get; set; }
+
+            [JsonProperty("SuppressCollapsingStocks")]
+            public bool? SuppressCollapsingStocks { get; set; }
         }
 
         internal static readonly VisualStockDefinition[] BuiltInVisualStockDefinitions =
@@ -201,6 +249,32 @@ namespace FoldThatStock
             },
             new VisualStockDefinition
             {
+                Id = "uzi_pro_a3_modular_folding_brace",
+                DisplayName = "UZI PRO A3 Tactical Modular Folding Brace",
+                TemplateId = "6686717ffb75ee4a5e02eb19",
+                StockPathContains = "stock_uzi_pro_a3_tactical_modular_folding_brace",
+                TargetBoneNamePatterns = new[] { "mod_stock_axis_002" },
+                HasFoldedRotation = true,
+                FoldedRotation = PositiveZFoldedRotation
+            },
+            new VisualStockDefinition
+            {
+                Id = "uzi_pro_stabilizing_brace",
+                DisplayName = "UZI PRO Stabilizing Brace",
+                TemplateId = "668032ba74b8f2050c0b917d",
+                StockPathContains = "stock_uzi_pro_sb_tactical_stabilizing_brace",
+                TargetBoneNamePatterns = new[] { "mod_stock_axis_000" }
+            },
+            new VisualStockDefinition
+            {
+                Id = "uzi_pro_sbr_buttstock",
+                DisplayName = "UZI PRO SBR buttstock",
+                TemplateId = "66867310f3734a938b077f79",
+                StockPathContains = "stock_uzi_pro_iwi_pro_buttstock",
+                TargetBoneNamePatterns = new[] { "mod_stock_axis_001" }
+            },
+            new VisualStockDefinition
+            {
                 Id = "ak_utg_sfs_adapter",
                 DisplayName = "AKM/AK-74 ME4 buffer tube adapter",
                 TemplateId = "5649b2314bdc2d79388b4576",
@@ -226,6 +300,41 @@ namespace FoldThatStock
                 BundleFileName = "stock_ak_magpul_zhukov_s.bundle",
                 BundleSourcePathContains = "assets/content/items/mods/stocks/stock_ak_magpul_zhukov_s.bundle",
                 BundleOverridePath = Path.Combine("FoldThatStock", "stock_ak_magpul_zhukov_s.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "uas_ak_stock",
+                DisplayName = "FAB Defense UAS AK stock",
+                TemplateId = "5b04473a5acfc40018632f70",
+                ContainerPathContains = "stock_ak_fab_defense_uas_ak_p",
+                StockPathContains = "stock_ak_fab_defense_uas_ak_p",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding_axis" },
+                HasFoldedRotation = true,
+                FoldedRotation = DefaultRightFoldedRotation,
+                BundleFileName = "stock_ak_fab_defense_uas_ak_p.bundle",
+                BundleSourcePathContains = "assets/content/items/mods/stocks/stock_ak_fab_defense_uas_ak_p.bundle",
+                BundleOverridePath = Path.Combine("FoldThatStock", "stock_ak_fab_defense_uas_ak_p.bundle")
+            },
+            new VisualStockDefinition
+            {
+                Id = "uas_sks_stock",
+                DisplayName = "FAB Defense UAS SKS stock",
+                TemplateId = "5d0236dad7ad1a0940739d29",
+                ContainerPathContains = "stock_sks_fab_defence_uas_sks",
+                StockPathContains = "stock_sks_fab_defence_uas_sks",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding_axis" },
+                HasFoldedRotation = true,
+                FoldedRotation = DefaultRightFoldedRotation
+            },
+            new VisualStockDefinition
+            {
+                Id = "uas_shared_folding_stock",
+                DisplayName = "FAB Defense UAS folding stock",
+                TemplateId = "653ed132896b99b40a0292e6",
+                StockPathContains = "stock_fab_fab_defence_uas_folding_stock",
+                TargetBoneNamePatterns = new[] { "mod_stock_folding_axis" },
+                HasFoldedRotation = true,
+                FoldedRotation = DefaultRightFoldedRotation
             },
             new VisualStockDefinition
             {
@@ -300,7 +409,7 @@ namespace FoldThatStock
                 StockPathContains = "stock_sa58_ds_arms_para_folding_buffer_tube_adapter",
                 TargetBoneNamePatterns = new[] { "mod_stock_axis" },
                 HasFoldedRotation = true,
-                FoldedRotation = Sa58BufferTubeAdapterFoldedRotation
+                FoldedRotation = PositiveZFoldedRotation
             },
             new VisualStockDefinition
             {
@@ -338,6 +447,19 @@ namespace FoldThatStock
             },
             ManipulatesRightArm = true
         };
+        private readonly DonorAnimationProfile _uziProDonor = new DonorAnimationProfile
+        {
+            Id = "uzi-pro-right-fold",
+            DisplayName = "UZI PRO SMG right-fold",
+            BundleFolder = "uzi_pro",
+            FoldClipName = "uzip_smg_stock_fold",
+            UnfoldClipName = "uzip_smg_stock_unfold",
+            AnimationAssetSuffixes = new[]
+            {
+                "assets/content/weapons/uzi_pro/weapon_iwi_uzi_pro_smg_9x19_animation.fbx"
+            },
+            ManipulatesRightArm = true
+        };
         private readonly DonorAnimationProfile _mp5Donor = new DonorAnimationProfile
         {
             Id = "mp5-collapse",
@@ -368,13 +490,57 @@ namespace FoldThatStock
         };
         private Harmony _harmony;
         private bool _isShuttingDown;
+        private bool _suppressUziAdapterLeftFoldingStocks = true;
+        private bool _suppressUziAdapterCollapsingStocks = true;
 
         private void Awake()
         {
             Instance = this;
+            LoadSharedServerConfig();
             _harmony = new Harmony(PluginGuid);
             _harmony.PatchAll(typeof(FoldThatStockPlugin).Assembly);
             Logger.LogInfo($"{PluginName} {PluginVersion} loaded.");
+        }
+
+        private void LoadSharedServerConfig()
+        {
+            string gameRootPath = Directory.GetParent(BepInEx.Paths.BepInExRootPath)?.FullName
+                ?? BepInEx.Paths.BepInExRootPath;
+            string configPath = Path.Combine(
+                gameRootPath,
+                "SPT_Runtime",
+                "user",
+                "mods",
+                "FoldThatStock",
+                "config.json");
+
+            try
+            {
+                if (!File.Exists(configPath))
+                {
+                    Logger.LogWarning(
+                        $"Shared server config was not found at {configPath}. "
+                        + "UZI adapter fold suppression will use its safe defaults.");
+                    return;
+                }
+
+                SharedServerConfig config = JsonConvert.DeserializeObject<SharedServerConfig>(File.ReadAllText(configPath));
+                UziAdapterFoldSuppressionSettings settings = config?.UziAdapterFoldSuppression;
+                _suppressUziAdapterLeftFoldingStocks = settings?.SuppressLeftFoldingStocks ?? true;
+                _suppressUziAdapterCollapsingStocks = settings?.SuppressCollapsingStocks ?? true;
+                Logger.LogInfo(
+                    "Loaded UZI adapter fold suppression from the shared server config: "
+                    + $"left-folding={_suppressUziAdapterLeftFoldingStocks}, "
+                    + $"collapsing={_suppressUziAdapterCollapsingStocks}.");
+            }
+            catch (Exception exception)
+            {
+                _suppressUziAdapterLeftFoldingStocks = true;
+                _suppressUziAdapterCollapsingStocks = true;
+                Logger.LogWarning(
+                    $"Shared server config could not be read from {configPath}: {exception.Message}. "
+                    + "UZI adapter fold suppression will use its safe defaults.");
+            }
         }
 
         private void OnDestroy()
@@ -393,6 +559,7 @@ namespace FoldThatStock
             }
 
             ClearDonorProfile(_umpDonor);
+            ClearDonorProfile(_uziProDonor);
             ClearDonorProfile(_mp5Donor);
             ClearDonorProfile(_aks74uDonor);
             _animatedFoldOperations.Clear();
@@ -419,7 +586,7 @@ namespace FoldThatStock
         {
             if (item == null
                 || itemView == null
-                || UsesNativeFoldOperation(item)
+                || (UsesNativeFoldOperation(item) && !RequiresNativeVisualCorrection(item))
                 || !ContainsSupportedVisualTarget(itemView.transform))
             {
                 return;
@@ -571,6 +738,11 @@ namespace FoldThatStock
 
             if (UsesNativeFoldOperation(foldOperation))
             {
+                if (RequiresNativeVisualCorrection(foldOperation?.Foldable?.Item))
+                {
+                    BeginNativeVisualAnimation(foldOperation.Foldable);
+                }
+
                 return;
             }
 
@@ -602,6 +774,44 @@ namespace FoldThatStock
             catch
             {
                 return NativeFoldOperationWeaponTemplateIds.Contains(GetTemplateId(item));
+            }
+        }
+
+        private static bool RequiresNativeVisualCorrection(Item item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                Item rootItem = item.GetRootItem() ?? item;
+                VisualStockDefinition stockDefinition;
+                return UziProWeaponTemplateIds.Contains(GetTemplateId(rootItem))
+                    && TryFindItemTreeVisualDefinition(rootItem, out stockDefinition)
+                    && string.Equals(
+                        stockDefinition.Id,
+                        "uzi_pro_a3_modular_folding_brace",
+                        StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void BeginNativeVisualAnimation(FoldableComponent foldable)
+        {
+            if (foldable == null)
+            {
+                return;
+            }
+
+            FoldThatStockVisualController[] controllers = FindObjectsOfType<FoldThatStockVisualController>();
+            for (int i = 0; i < controllers.Length; i++)
+            {
+                controllers[i]?.BeginNativeAnimation(foldable);
             }
         }
 
@@ -701,7 +911,8 @@ namespace FoldThatStock
 
         // Selects a donor from both the weapon root and installed stock, then attaches one
         // short-lived sampler to the active first-person animator. The proven AK/UMP path is
-        // preserved, while SIG/MP5 weapons use left-hand MP5 or AKS-74U gestures.
+        // preserved, RD-704 uses the Vector gesture, the A3-on-SIG and UAS-SKS routes use
+        // the UZI PRO gesture, and other SIG/MP5 weapons use MP5 or AKS-74U gestures.
         private bool TryStartHybridDonorAnimation(object operationState, FoldOperation foldOperation)
         {
             DonorAnimationProfile profile;
@@ -800,6 +1011,85 @@ namespace FoldThatStock
             }
 
             return false;
+        }
+
+        private bool ShouldSuppressUziAdapterFolding(FoldableComponent foldable)
+        {
+            if (foldable?.Item == null
+                || foldable.Folded)
+            {
+                return false;
+            }
+
+            try
+            {
+                Item rootItem = foldable.Item.GetRootItem() ?? foldable.Item;
+                if (!UziProWeaponTemplateIds.Contains(GetTemplateId(rootItem)))
+                {
+                    return false;
+                }
+
+                foreach (Item item in rootItem.GetAllItems())
+                {
+                    if (!UziStockAdapterTemplateIds.Contains(GetTemplateId(item)))
+                    {
+                        continue;
+                    }
+
+                    CompoundItem adapter = item as CompoundItem;
+                    Slot stockSlot = adapter?.Slots?.FirstOrDefault(slot => string.Equals(
+                        slot.ID,
+                        UziAdapterStockSlotId,
+                        StringComparison.OrdinalIgnoreCase));
+                    Item installedStock = stockSlot?.ContainedItem;
+                    if (installedStock == null)
+                    {
+                        return true;
+                    }
+
+                    if (IsUziAdapterStockCategorySuppressed(installedStock))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                // An item can be detached while UI eligibility is being refreshed. Preserve
+                // EFT's normal behavior when the transient adapter slot cannot be inspected.
+            }
+
+            return false;
+        }
+
+        private bool IsUziAdapterStockCategorySuppressed(Item installedStock)
+        {
+            VisualStockDefinition definition;
+            if (TryMatchBuiltInDefinition(installedStock, out definition)
+                && IsUziAdapterStockCategorySuppressed(definition))
+            {
+                return true;
+            }
+
+            foreach (Item child in installedStock.GetAllItems())
+            {
+                if (TryMatchBuiltInDefinition(child, out definition)
+                    && IsUziAdapterStockCategorySuppressed(definition))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsUziAdapterStockCategorySuppressed(VisualStockDefinition definition)
+        {
+            return definition != null
+                && ((_suppressUziAdapterLeftFoldingStocks
+                        && UziAdapterLeftFoldingStockDefinitionIds.Contains(definition.Id))
+                    || (_suppressUziAdapterCollapsingStocks
+                        && UziAdapterCollapsingStockDefinitionIds.Contains(definition.Id)));
         }
 
         // Keep the successful UMP synchronization ratios, scaled to each donor's native clip
@@ -1079,7 +1369,7 @@ namespace FoldThatStock
         }
 
         // Retarget only configured weapon roots. AK-family roots keep the working UMP profile;
-        // SIG/MP5/M700 roots route by the actual supported stock found in the item tree.
+        // SIG/MP5/M700 roots route by the supported stock found in the item tree.
         private bool TryResolveDonorProfile(
             FoldOperation foldOperation,
             out DonorAnimationProfile profile,
@@ -1101,7 +1391,25 @@ namespace FoldThatStock
                     return false;
                 }
 
-                if (UmpAnimatedAkTemplateIds.Contains(rootTemplateId))
+                if (string.Equals(stockDefinition.Id, "uas_ak_stock", StringComparison.OrdinalIgnoreCase))
+                {
+                    profile = _uziProDonor;
+                    return true;
+                }
+
+                if (UasSksStockDefinitionIds.Contains(stockDefinition.Id))
+                {
+                    profile = _uziProDonor;
+                    return true;
+                }
+
+                if (UziAnimatedAkTemplateIds.Contains(rootTemplateId))
+                {
+                    profile = _uziProDonor;
+                    return true;
+                }
+
+                if (string.Equals(rootTemplateId, Sa58TemplateId, StringComparison.OrdinalIgnoreCase))
                 {
                     profile = _umpDonor;
                     return true;
@@ -1110,6 +1418,15 @@ namespace FoldThatStock
                 if (!StockRoutedAnimatedWeaponTemplateIds.Contains(rootTemplateId))
                 {
                     return false;
+                }
+
+                if (string.Equals(
+                    stockDefinition.Id,
+                    "uzi_pro_a3_modular_folding_brace",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    profile = _uziProDonor;
+                    return true;
                 }
 
                 profile = CollapseStockDefinitionIds.Contains(stockDefinition.Id)
@@ -1742,6 +2059,21 @@ namespace FoldThatStock
             }
         }
 
+        // Make EFT's normal fold eligibility host-aware without changing attachment filters or
+        // the global BlocksFolding value on any stock template. Returning false only while the
+        // component is unfolded suppresses folding but always leaves unfolding available.
+        [HarmonyPatch(typeof(FoldableComponent), nameof(FoldableComponent.CanBeFolded), MethodType.Getter)]
+        private static class UziAdapterFoldSuppressionPatch
+        {
+            private static void Postfix(FoldableComponent __instance, ref bool __result)
+            {
+                if (__result && Instance?.ShouldSuppressUziAdapterFolding(__instance) == true)
+                {
+                    __result = false;
+                }
+            }
+        }
+
         // Ignore only the in-raid fold hotkey while this weapon's donor overlay is active.
         // In particular, this covers the 0.30-second final handoff after EFT has already
         // returned to idle and would otherwise accept a second, unanimated fold operation.
@@ -1874,6 +2206,7 @@ namespace FoldThatStock
     public sealed class FoldThatStockVisualController : MonoBehaviour, IDress
     {
         internal const float DefaultTransitionSeconds = 0.12f;
+        private const float NativeAnimationTimeoutSeconds = 3f;
 
         private sealed class TargetState
         {
@@ -1899,6 +2232,8 @@ namespace FoldThatStock
         private Action _unbind;
         private bool _animationHold;
         private bool _heldFolded;
+        private bool _nativeAnimationInProgress;
+        private float _nativeAnimationTimeoutAt;
 
         public void Init(Item item, bool isAnimated)
         {
@@ -1930,6 +2265,8 @@ namespace FoldThatStock
             _targets.Clear();
             _foldable = null;
             _animationHold = false;
+            _nativeAnimationInProgress = false;
+            _nativeAnimationTimeoutAt = 0f;
         }
 
         public bool Bind(Item item)
@@ -1971,17 +2308,42 @@ namespace FoldThatStock
                 return;
             }
 
+            if (_nativeAnimationInProgress)
+            {
+                if (Time.realtimeSinceStartup < _nativeAnimationTimeoutAt)
+                {
+                    return;
+                }
+
+                _nativeAnimationInProgress = false;
+            }
+
             ApplyStateForFolded(_animationHold ? _heldFolded : _foldable.Folded, false, DefaultTransitionSeconds);
         }
 
         private void OnFoldChanged()
         {
+            _nativeAnimationInProgress = false;
+
             // Preserve EFT's instant inventory-preview behavior. In-raid animation timing is
             // supplied explicitly through ReleaseAnimationHold rather than this event.
             ApplyStateForFolded(
                 _animationHold ? _heldFolded : _foldable.Folded,
                 false,
                 DefaultTransitionSeconds);
+        }
+
+        internal void BeginNativeAnimation(FoldableComponent foldable)
+        {
+            if (_foldable == null || !ReferenceEquals(_foldable, foldable))
+            {
+                return;
+            }
+
+            // Let EFT's native UZI clip own the A3 pivot during the gesture. When the logical
+            // folded state changes, OnFoldChanged applies the configured final Euler rotation.
+            _nativeAnimationInProgress = true;
+            _nativeAnimationTimeoutAt = Time.realtimeSinceStartup + NativeAnimationTimeoutSeconds;
         }
 
         internal void HoldForAnimation(FoldableComponent foldable, bool targetFolded)

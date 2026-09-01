@@ -7,7 +7,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblyName>FoldThatStock</AssemblyName>
     <RootNamespace>FoldThatStock</RootNamespace>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <OutputPath>bin\$(Configuration)\</OutputPath>
@@ -35,6 +35,10 @@
     </Reference>
     <Reference Include="0Harmony">
       <HintPath>$(BepInExCorePath)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(ManagedPath)\Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine">
@@ -70,6 +74,7 @@
     <Error Condition="!Exists('$(ManagedPath)\ItemComponent.Types.dll')" Text="ItemComponent.Types.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(BepInExCorePath)\BepInEx.dll')" Text="BepInEx.dll not found. Build with -p:SPTRoot=&quot;C:\SPT&quot; or point SPTRoot at your SPT install." />
     <Error Condition="!Exists('$(BepInExCorePath)\0Harmony.dll')" Text="0Harmony.dll not found under $(BepInExCorePath). Check your SPTRoot value." />
+    <Error Condition="!Exists('$(ManagedPath)\Newtonsoft.Json.dll')" Text="Newtonsoft.Json.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.dll')" Text="UnityEngine.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.CoreModule.dll')" Text="UnityEngine.CoreModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.AssetBundleModule.dll')" Text="UnityEngine.AssetBundleModule.dll not found under $(ManagedPath). Check your SPTRoot value." />
