@@ -13,6 +13,9 @@ using EFT.Visual;
 using HarmonyLib;
 using Newtonsoft.Json;
 using UnityEngine;
+using FirearmHandsInputTranslator = Class1730;
+using FoldOperation = FoldOperationClass;
+using IDress = GInterface236;
 
 namespace FoldThatStock
 {
@@ -21,7 +24,7 @@ namespace FoldThatStock
     {
         public const string PluginGuid = "com.foldthatstock";
         public const string PluginName = "FoldThatStock";
-        public const string PluginVersion = "2.1.0";
+        public const string PluginVersion = "1.1.0";
         private const string UziAdapterStockSlotId = "mod_stock_000";
         private const string Sa58TemplateId = "5b0bbe4e5acfc40dc528a72d";
 
@@ -508,7 +511,7 @@ namespace FoldThatStock
                 ?? BepInEx.Paths.BepInExRootPath;
             string configPath = Path.Combine(
                 gameRootPath,
-                "SPT_Runtime",
+                "SPT",
                 "user",
                 "mods",
                 "FoldThatStock",
@@ -1441,7 +1444,7 @@ namespace FoldThatStock
         }
 
         // Replaces the animation-event callback that would normally end EFT's fold operation.
-        // method_5 is the SPT 4.1.3 name; SwitchToIdle and the signature scan are fallbacks.
+        // method_5 is the known SPT 4.0.13 name; SwitchToIdle and the signature scan are fallbacks.
         private bool InvokeFoldOperationCompletion(object operationState)
         {
             if (operationState == null)
@@ -1931,7 +1934,8 @@ namespace FoldThatStock
         {
             private static MethodBase TargetMethod()
             {
-                Type slotViewType = typeof(Item).Assembly.GetType("ContainerCollectionView+SlotView", false);
+                Type slotViewType = typeof(Item).Assembly.GetType("ContainerCollectionView+SlotView", false)
+                    ?? typeof(Item).Assembly.GetType("GClass768+GClass769", false);
                 MethodInfo insertItemMethod = slotViewType?.GetMethod(
                     "InsertItem",
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly,
@@ -1941,7 +1945,7 @@ namespace FoldThatStock
 
                 if (insertItemMethod == null || insertItemMethod.ReturnType != typeof(void))
                 {
-                    throw new MissingMethodException("FoldThatStock could not resolve ContainerCollectionView.SlotView.InsertItem(Item, GameObject).");
+                    throw new MissingMethodException("FoldThatStock could not resolve the container slot view InsertItem(Item, GameObject) method.");
                 }
 
                 return insertItemMethod;

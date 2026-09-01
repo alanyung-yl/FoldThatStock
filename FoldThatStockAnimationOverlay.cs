@@ -7,6 +7,7 @@ using RootMotion.FinalIK;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
+using FoldOperation = FoldOperationClass;
 
 namespace FoldThatStock
 {

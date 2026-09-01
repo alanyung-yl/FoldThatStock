@@ -1,8 +1,10 @@
 # FoldThatStock
 
-FoldThatStock adds functional folding and collapsing behavior to weapons and stocks that do not support it in vanilla SPT.
+FoldThatStock adds functional folding and collapsing behavior to weapons and stocks that do not support it in vanilla SPT. Its server patch enables the required behavior on supported item templates, while its client plugin supplies the missing stock visuals and first-person animation.
 
-Version 2.1.0 expands weapon and stock coverage, refines donor-animation routing, and adds configurable UZI PRO adapter collision handling for SPT 4.1.3. The mod retargets compatible animations from existing EFT weapons and synchronizes the weapon, stock, arms, wrists, hands, and fingers during folding.
+Version 1.1.0 brings the major folding-animation update introduced in FoldThatStock 2.0.0, together with the expanded v2.1.0 weapon and stock support, back to SPT 4.0.13. Unlike earlier v1.x releases, supported in-raid fold operations now retarget animations from compatible EFT weapons and synchronize the weapon, stock, arms, wrists, hands, and fingers instead of changing only the logical and stock visual state.
+
+FoldThatStock v1.x.x releases target SPT 4.0.x. FoldThatStock v2.x.x releases target SPT 4.1.x.
 
 [![](https://img.shields.io/github/v/release/alanyung-yl/FoldThatStock?display_name=tag&sort=semver)](https://github.com/alanyung-yl/FoldThatStock/releases/latest)
 [![](https://img.shields.io/github/downloads/alanyung-yl/FoldThatStock/total)](https://github.com/alanyung-yl/FoldThatStock/releases)
@@ -115,7 +117,7 @@ Version 2.1.0 expands weapon and stock coverage, refines donor-animation routing
 
 ## Installation And Updates
 
-1. If you previously customized `SPT_Runtime\user\mods\FoldThatStock\config.json`, back it up as a reference.
+1. If you previously customized `SPT\user\mods\FoldThatStock\config.json`, back it up as a reference.
 2. Extract the release archive directly into your SPT installation folder.
 3. Replace all existing FoldThatStock files, including `config.json`.
 4. Reapply any desired custom settings to the newly installed config, then start SPT normally.
@@ -124,7 +126,7 @@ FoldThatStock does not currently version its config schema. Updates may add fiel
 
 ## Configuration and Customization
 
-The server configuration is located at `SPT_Runtime\user\mods\FoldThatStock\config.json`.
+The server configuration is located at `SPT\user\mods\FoldThatStock\config.json`.
 
 - Set the top-level `"Enabled"` value to `false` to disable all FoldThatStock server template patches.
 - Set `"Enabled": false` on an individual weapon or stock entry to skip that entry's direct server template patch. This does not unload the client plugin or remove its built-in visual definition.

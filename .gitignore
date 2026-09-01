@@ -1,6 +1,7 @@
 ﻿# Build outputs
 bin/
 obj/
+plugin/
 
 # IDE/editor files
 .vs/

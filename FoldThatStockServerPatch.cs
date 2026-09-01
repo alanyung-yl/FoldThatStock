@@ -2,29 +2,29 @@ using System.Collections;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
-using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Spt.Mod;
-using SPTarkov.Server.Core.Models.Spt.Tables;
+using SPTarkov.Server.Core.Models.Utils;
+using SPTarkov.Server.Core.Services;
 using TemplateItem = SPTarkov.Server.Core.Models.Eft.Common.Tables.TemplateItem;
 
 namespace FoldThatStock.Server;
 
-public record ModMetadata : IModMetadata
+public record ModMetadata : AbstractModMetadata
 {
-    public string ModGuid { get; init; } = "com.foldthatstock";
-    public string Name { get; init; } = "FoldThatStock";
-    public string Author { get; init; } = "alanyung-yl";
-    public List<string>? Contributors { get; init; }
-    public SemanticVersioning.Version Version { get; init; } = new("2.1.0");
-    public SemanticVersioning.Range SptVersion { get; init; } = new("~4.1.0");
-    public bool HasPrepatcher { get; init; }
-    public List<string>? Incompatibilities { get; init; }
-    public Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
-    public string? Url { get; init; }
-    public string License { get; init; } = "GPL-3.0-only";
+    public override string ModGuid { get; init; } = "com.foldthatstock";
+    public override string Name { get; init; } = "FoldThatStock";
+    public override string Author { get; init; } = "alanyung-yl";
+    public override List<string>? Contributors { get; init; }
+    public override SemanticVersioning.Version Version { get; init; } = new("1.1.0");
+    public override SemanticVersioning.Range SptVersion { get; init; } = new("~4.0.0");
+    public override List<string>? Incompatibilities { get; init; }
+    public override Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
+    public override string? Url { get; init; }
+    public override bool? IsBundleMod { get; init; }
+    public override string License { get; init; } = "GPL-3.0-only";
 }
 
 public sealed class FoldThatStockServerConfig
@@ -62,10 +62,10 @@ public sealed class StockTemplatePatch
     public bool? BlocksFolding { get; set; }
 }
 
-[Injectable(TypePriority = OnLoadOrder.PostLoad + 1)]
+[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 1)]
 public class FoldThatStockServerPatch(
     ISptLogger<FoldThatStockServerPatch> logger,
-    TemplateTable templateTable
+    DatabaseService databaseService
 ) : IOnLoad
 {
     private const string LogPrefix = "FoldThatStock:";
@@ -116,7 +116,7 @@ public class FoldThatStockServerPatch(
         WriteIndented = true,
     };
 
-    public Task OnLoadAsync(CancellationToken cancellationToken)
+    public Task OnLoad()
     {
         var config = LoadOrCreateConfig();
         if (!config.Enabled)
@@ -125,7 +125,7 @@ public class FoldThatStockServerPatch(
             return Task.CompletedTask;
         }
 
-        var items = templateTable.Items;
+        var items = databaseService.GetItems();
         var patchedWeapons = 0;
         var patchedStocks = 0;
         var patchedFoldBlocks = 0;
